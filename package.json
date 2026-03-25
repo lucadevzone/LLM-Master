@@ -1,0 +1,22 @@
+{
+  "name": "llm-master",
+  "version": "0.1.0",
+  "description": "RPG testuale con Game Master basato su LLM locale (Ollama)",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test src/**/*.test.js"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "express": "^4.19.2",
+    "gray-matter": "^4.0.3",
+    "multer": "^1.4.5-lts.1",
+    "uuid": "^9.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

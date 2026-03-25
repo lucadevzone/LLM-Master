@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM-Master · Admin</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    /* ── Layout ─────────────────────────────────────────────────────────────── */
+    body { display: flex; flex-direction: column; min-height: 100vh; overflow: auto; }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .75rem 1.5rem;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .top-bar-title { font-weight: 700; color: var(--accent); letter-spacing: .05em; }
+    .top-bar-right { display: flex; align-items: center; gap: 1rem; font-size: .85rem; color: var(--text-muted); }
+    .btn-logout {
+      padding: .35rem .9rem;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: .85rem;
+    }
+    .btn-logout:hover { border-color: var(--accent); color: var(--accent); }
+
+    .tab-nav {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-surface);
+      padding: 0 1.5rem;
+    }
+    .tab-nav button {
+      padding: .75rem 1.4rem;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: .9rem;
+      font-weight: 500;
+    }
+    .tab-nav button.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+    .main-content { flex: 1; padding: 1.5rem; max-width: 960px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Cards / tables ─────────────────────────────────────────────────────── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .section-header h2 { font-size: 1.1rem; margin: 0; }
+
+    .btn {
+      padding: .45rem 1rem;
+      border-radius: 6px;
+      font-size: .85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-danger  { background: #c0392b; color: #fff; }
+    .btn-ghost   { background: none; border-color: var(--border); color: var(--text-muted); }
+
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th { text-align: left; padding: .5rem .75rem; font-size: .75rem; text-transform: uppercase;
+         letter-spacing: .05em; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+    td { padding: .6rem .75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(0,0,0,.02); }
+
+    .badge {
+      display: inline-block;
+      padding: .15rem .5rem;
+      border-radius: 20px;
+      font-size: .75rem;
+      font-weight: 600;
+    }
+    .badge-waiting  { background: #fef3c7; color: #92400e; }
+    .badge-active   { background: #d1fae5; color: #065f46; }
+    .badge-archived { background: #f3f4f6; color: #6b7280; }
+
+    .empty-row td { text-align: center; color: var(--text-muted); font-style: italic; padding: 2rem; }
+
+    .invite-code {
+      font-family: monospace;
+      background: #fef9ec;
+      border: 1px solid #f0d060;
+      border-radius: 4px;
+      padding: .2rem .5rem;
+      font-size: .85rem;
+      cursor: pointer;
+      user-select: all;
+    }
+    .invite-code:hover { background: #fdf3c0; }
+
+    /* ── Modal ───────────────────────────────────────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.4);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--bg-surface);
+      border-radius: 10px;
+      padding: 1.75rem;
+      width: 100%;
+      max-width: 460px;
+      box-shadow: 0 8px 30px rgba(0,0,0,.15);
+    }
+    .modal h3 { margin: 0 0 1.25rem; font-size: 1.1rem; }
+    .modal .form-group { margin-bottom: 1rem; }
+    .modal .form-group label { display: block; font-size: .8rem; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: .05em; margin-bottom: .35rem; }
+    .modal .form-group input,
+    .modal .form-group select {
+      width: 100%; padding: .55rem .75rem; border: 1px solid var(--border); border-radius: 6px;
+      background: var(--bg); color: var(--text); font-size: .95rem; box-sizing: border-box;
+    }
+    .modal .form-group input:focus,
+    .modal .form-group select:focus { outline: none; border-color: var(--accent); }
+    .modal-footer { display: flex; gap: .75rem; justify-content: flex-end; margin-top: 1.5rem; }
+    .error-msg { color: #c0392b; font-size: .85rem; margin-top: .5rem; }
+
+    /* ── Upload area ─────────────────────────────────────────────────────────── */
+    .upload-area {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: .9rem;
+      transition: border-color .15s;
+    }
+    .upload-area:hover { border-color: var(--accent); color: var(--accent); }
+    #file-input { display: none; }
+
+    /* ── Invite result box ───────────────────────────────────────────────────── */
+    .invite-result {
+      display: none;
+      background: #fef9ec;
+      border: 1px solid #f0d060;
+      border-radius: 6px;
+      padding: 1rem 1.25rem;
+      margin-top: 1rem;
+    }
+    .invite-result p { margin: 0 0 .5rem; font-size: .9rem; }
+    .invite-result .code-big {
+      font-family: monospace;
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: .15em;
+      color: var(--accent);
+      cursor: pointer;
+      user-select: all;
+    }
+    .invite-result small { color: var(--text-muted); font-size: .8rem; }
+  </style>
+</head>
+<body>
+
+<!-- ── Top bar ───────────────────────────────────────────────────────────────── -->
+<div class="top-bar">
+  <span class="top-bar-title">LLM · MASTER &mdash; Admin</span>
+  <div class="top-bar-right">
+    <span id="admin-name"></span>
+    <button class="btn-logout" id="btn-logout">Esci</button>
+  </div>
+</div>
+
+<!-- ── Tab navigation ────────────────────────────────────────────────────────── -->
+<div class="tab-nav">
+  <button class="active" data-tab="adventures">Avventure</button>
+  <button data-tab="players">Giocatori</button>
+  <button data-tab="rooms">Stanze</button>
+</div>
+
+<!-- ── Main content ──────────────────────────────────────────────────────────── -->
+<div class="main-content">
+
+  <!-- ══ TAB: Avventure ════════════════════════════════════════════════════════ -->
+  <div class="tab-panel active" id="panel-adventures">
+    <div class="section-header">
+      <h2>Avventure disponibili</h2>
+      <button class="btn btn-primary" id="btn-upload-adventure">+ Carica avventura</button>
+    </div>
+    <input type="file" id="file-input" accept=".md,.yaml,.yml">
+
+    <table>
+      <thead>
+        <tr>
+          <th>Titolo</th><th>Ambientazione</th><th>Giocatori</th><th>Tono</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="adventures-tbody">
+        <tr class="empty-row"><td colspan="5">Caricamento...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ══ TAB: Giocatori ════════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="panel-players">
+    <div class="section-header">
+      <h2>Giocatori</h2>
+      <button class="btn btn-primary" id="btn-add-player">+ Aggiungi giocatore</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>Nome</th><th>Email</th><th>Stato account</th><th>Creato il</th><th></th></tr>
+      </thead>
+      <tbody id="players-tbody">
+        <tr class="empty-row"><td colspan="5">Caricamento...</td></tr>
+      </tbody>
+    </table>
+
+    <!-- Box che appare dopo la creazione con il codice invito -->
+    <div class="invite-result" id="invite-result">
+      <p>Giocatore creato. Condividi questo codice invito:</p>
+      <div class="code-big" id="invite-code-display" title="Clicca per copiare"></div>
+      <small>Il codice può essere usato una sola volta per attivare l'account.</small>
+    </div>
+  </div>
+
+  <!-- ══ TAB: Stanze ════════════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="panel-rooms">
+    <div class="section-header">
+      <h2>Stanze</h2>
+      <button class="btn btn-primary" id="btn-create-room">+ Nuova stanza</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>Nome</th><th>Avventura</th><th>Giocatore</th><th>Stato</th><th>Creata il</th><th></th></tr>
+      </thead>
+      <tbody id="rooms-tbody">
+        <tr class="empty-row"><td colspan="6">Caricamento...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- ══ Modal: Aggiungi giocatore ═════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-add-player">
+  <div class="modal">
+    <h3>Aggiungi giocatore</h3>
+    <form id="form-add-player">
+      <div class="form-group">
+        <label>Nome</label>
+        <input type="text" id="new-player-name" required placeholder="Mario Rossi">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="new-player-email" required placeholder="mario@esempio.it">
+      </div>
+      <div class="error-msg" id="err-add-player"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" data-close="modal-add-player">Annulla</button>
+        <button type="submit" class="btn btn-primary">Crea giocatore</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ══ Modal: Crea stanza ════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-create-room">
+  <div class="modal">
+    <h3>Nuova stanza</h3>
+    <form id="form-create-room">
+      <div class="form-group">
+        <label>Avventura</label>
+        <select id="room-adventure" required>
+          <option value="">— Seleziona —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Giocatore</label>
+        <select id="room-player" required>
+          <option value="">— Seleziona —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Nome stanza (opzionale)</label>
+        <input type="text" id="room-name" placeholder="lascia vuoto per nome automatico">
+      </div>
+      <div class="error-msg" id="err-create-room"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" data-close="modal-create-room">Annulla</button>
+        <button type="submit" class="btn btn-primary">Crea stanza</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// ── Utility ────────────────────────────────────────────────────────────────────
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function badgeHtml(status) {
+  const map = { waiting: ['badge-waiting', 'In attesa'], active: ['badge-active', 'Attiva'], archived: ['badge-archived', 'Archiviata'] };
+  const [cls, label] = map[status] || ['badge-waiting', status];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+// ── Modal helpers ──────────────────────────────────────────────────────────────
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('[data-close]').forEach(btn => {
+  btn.addEventListener('click', () => closeModal(btn.dataset.close));
+});
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('open'); });
+});
+
+// ── Auth check & init ──────────────────────────────────────────────────────────
+
+(async () => {
+  try {
+    const me = await api('/api/auth/me');
+    if (me.role !== 'admin') { window.location.href = '/login'; return; }
+    document.getElementById('admin-name').textContent = me.username || 'Admin';
+  } catch {
+    window.location.href = '/login';
+    return;
+  }
+  loadAdventures();
+  loadPlayers();
+  loadRooms();
+})();
+
+document.getElementById('btn-logout').addEventListener('click', async () => {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  window.location.href = '/login';
+});
+
+// ── Tab navigation ─────────────────────────────────────────────────────────────
+
+document.querySelectorAll('.tab-nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Avventure ──────────────────────────────────────────────────────────────────
+
+let adventures = [];
+
+async function loadAdventures() {
+  const tbody = document.getElementById('adventures-tbody');
+  try {
+    adventures = await api('/api/adventures');
+    if (!adventures.length) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Nessuna avventura caricata.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = adventures.map(a => `
+      <tr>
+        <td><strong>${a.title}</strong></td>
+        <td>${a.setting || '—'}</td>
+        <td>${a.players || '—'}</td>
+        <td>${a.tone || '—'}</td>
+        <td style="text-align:right">
+          <button class="btn btn-danger" style="font-size:.8rem;padding:.3rem .7rem"
+                  onclick="deleteAdventure('${a.id}', '${a.title.replace(/'/g,"\\'")}')">Elimina</button>
+        </td>
+      </tr>`).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Errore: ${e.message}</td></tr>`;
+  }
+}
+
+async function deleteAdventure(id, title) {
+  if (!confirm(`Eliminare l'avventura "${title}"? Le stanze collegate rimarranno, ma non si potranno avviare nuove sessioni.`)) return;
+  try {
+    await api(`/api/adventures/${id}`, { method: 'DELETE' });
+    loadAdventures();
+  } catch (e) {
+    alert('Errore: ' + e.message);
+  }
+}
+
+// Upload avventura
+document.getElementById('btn-upload-adventure').addEventListener('click', () => {
+  document.getElementById('file-input').click();
+});
+
+document.getElementById('file-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('adventure', file);
+  try {
+    const res = await fetch('/api/adventures', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    loadAdventures();
+    alert(`Avventura "${data.title}" caricata.`);
+  } catch (e) {
+    alert('Errore upload: ' + e.message);
+  }
+  e.target.value = '';
+});
+
+// ── Giocatori ──────────────────────────────────────────────────────────────────
+
+let players = [];
+
+async function loadPlayers() {
+  const tbody = document.getElementById('players-tbody');
+  try {
+    players = await api('/api/users');
+    if (!players.length) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Nessun giocatore.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = players.map(p => `
+      <tr>
+        <td><strong>${p.name}</strong></td>
+        <td>${p.email}</td>
+        <td>${p.inviteUsed
+              ? '<span style="color:#065f46">✓ Attivo</span>'
+              : '<span style="color:#92400e">⏳ In attesa</span>'}</td>
+        <td>${fmtDate(p.created_at)}</td>
+        <td style="text-align:right">
+          <button class="btn btn-danger" style="font-size:.8rem;padding:.3rem .7rem"
+                  onclick="deletePlayer('${p.id}', '${p.name.replace(/'/g,"\\'")}')">Elimina</button>
+        </td>
+      </tr>`).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Errore: ${e.message}</td></tr>`;
+  }
+}
+
+async function deletePlayer(id, name) {
+  if (!confirm(`Eliminare il giocatore "${name}"?`)) return;
+  try {
+    await api(`/api/users/${id}`, { method: 'DELETE' });
+    loadPlayers();
+  } catch (e) {
+    alert('Errore: ' + e.message);
+  }
+}
+
+document.getElementById('btn-add-player').addEventListener('click', () => {
+  document.getElementById('err-add-player').textContent = '';
+  document.getElementById('form-add-player').reset();
+  document.getElementById('invite-result').style.display = 'none';
+  openModal('modal-add-player');
+});
+
+document.getElementById('form-add-player').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = document.getElementById('err-add-player');
+  err.textContent = '';
+  const btn = e.target.querySelector('[type=submit]');
+  btn.disabled = true;
+  try {
+    const player = await api('/api/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: document.getElementById('new-player-name').value.trim(),
+        email: document.getElementById('new-player-email').value.trim(),
+      }),
+    });
+    closeModal('modal-add-player');
+    loadPlayers();
+    // Mostra il codice invito
+    const box = document.getElementById('invite-result');
+    const codeEl = document.getElementById('invite-code-display');
+    codeEl.textContent = player.inviteCode;
+    codeEl.onclick = () => { navigator.clipboard.writeText(player.inviteCode); codeEl.textContent = '✓ Copiato!'; setTimeout(() => codeEl.textContent = player.inviteCode, 1500); };
+    box.style.display = 'block';
+    // Scroll to it
+    box.scrollIntoView({ behavior: 'smooth' });
+    // Switch to players tab if not already
+    document.querySelector('[data-tab="players"]').click();
+  } catch (ex) {
+    err.textContent = ex.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ── Stanze ─────────────────────────────────────────────────────────────────────
+
+async function loadRooms() {
+  const tbody = document.getElementById('rooms-tbody');
+  try {
+    const rooms = await api('/api/rooms');
+    if (!rooms.length) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Nessuna stanza.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rooms.map(r => `
+      <tr>
+        <td><strong>${r.name}</strong></td>
+        <td>${r.adventure_id}</td>
+        <td>${r.player_name}</td>
+        <td>${badgeHtml(r.status)}</td>
+        <td>${fmtDate(r.created_at)}</td>
+        <td style="text-align:right">
+          ${r.status !== 'archived'
+            ? `<button class="btn btn-danger" style="font-size:.8rem;padding:.3rem .7rem"
+                       onclick="archiveRoom('${r.id}', '${r.name.replace(/'/g,"\\'")}')">Archivia</button>`
+            : '<span style="color:var(--text-muted);font-size:.8rem">Archiviata</span>'}
+        </td>
+      </tr>`).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Errore: ${e.message}</td></tr>`;
+  }
+}
+
+async function archiveRoom(id, name) {
+  if (!confirm(`Archiviare la stanza "${name}"?`)) return;
+  try {
+    await api(`/api/rooms/${id}`, { method: 'DELETE' });
+    loadRooms();
+  } catch (e) {
+    alert('Errore: ' + e.message);
+  }
+}
+
+document.getElementById('btn-create-room').addEventListener('click', async () => {
+  document.getElementById('err-create-room').textContent = '';
+  document.getElementById('form-create-room').reset();
+  // Popola select avventure
+  const selAdv = document.getElementById('room-adventure');
+  selAdv.innerHTML = '<option value="">— Seleziona —</option>' +
+    adventures.map(a => `<option value="${a.id}">${a.title}</option>`).join('');
+  // Popola select giocatori
+  const selPl = document.getElementById('room-player');
+  selPl.innerHTML = '<option value="">— Seleziona —</option>' +
+    players.map(p => `<option value="${p.id}">${p.name} (${p.email})</option>`).join('');
+  openModal('modal-create-room');
+});
+
+document.getElementById('form-create-room').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = document.getElementById('err-create-room');
+  err.textContent = '';
+  const btn = e.target.querySelector('[type=submit]');
+  btn.disabled = true;
+  try {
+    await api('/api/rooms', {
+      method: 'POST',
+      body: JSON.stringify({
+        adventure_id: document.getElementById('room-adventure').value,
+        player_id: document.getElementById('room-player').value,
+        name: document.getElementById('room-name').value.trim() || undefined,
+      }),
+    });
+    closeModal('modal-create-room');
+    loadRooms();
+    document.querySelector('[data-tab="rooms"]').click();
+  } catch (ex) {
+    err.textContent = ex.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

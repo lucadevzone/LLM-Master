@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(export PATH=\"$PATH:/usr/local/bin:/opt/homebrew/bin\")",
+      "Bash(source ~/.zshrc)",
+      "Bash(source ~/.bashrc)"
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "id": "42b4539b-15ab-4caf-afa7-c772b170d495",
+  "created_at": "2026-03-25T15:04:06.099Z",
+  "last_active": "2026-03-25T15:06:05.234Z",
+  "status": "active",
+  "adventure_id": "la_chiamata_di_cthulhu",
+  "model": "llama3.1:8b",
+  "mode": "creative",
+  "language": "it",
+  "players": [
+    {
+      "character_id": "f9792faf-4a76-4477-9e06-f0d0b3acd1ea",
+      "connection_id": null
+    }
+  ],
+  "turn_count": 2
+}

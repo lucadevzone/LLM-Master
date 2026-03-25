@@ -1,0 +1,372 @@
+/* ── Reset e variabili ── */
+:root {
+  --bg: #f4f0e8;
+  --bg-surface: #ede8dc;
+  --bg-card: #e6e0d2;
+  --bg-input: #faf8f3;
+  --border: #c8bfa8;
+  --border-light: #ddd5c0;
+  --text: #2c2416;
+  --text-muted: #6b5c42;
+  --text-dim: #a8997e;
+  --accent: #7a4f1a;
+  --accent-light: #9c6422;
+  --gm-color: #5a3a0a;
+  --player-color: #1a4a2a;
+  --system-color: #2a3a5a;
+  --danger: #8a2a1a;
+  --danger-light: #b03a22;
+  --success: #1a4a1a;
+  --success-light: #2a6a2a;
+  --san-color: #4a1a6a;
+  --san-light: #6a2a8a;
+  --font-main: 'Courier New', 'Lucida Console', monospace;
+  --radius: 4px;
+  --transition: 120ms ease;
+  --shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: var(--font-main);
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+/* ── Layout principale ── */
+#app {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* Schermata di avvio */
+#screen-start {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 2rem;
+  gap: 2rem;
+}
+
+/* Schermata di gioco */
+#screen-game {
+  display: none;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Schermata avvio ── */
+.start-title {
+  text-align: center;
+}
+
+.start-title h1 {
+  font-size: 2rem;
+  color: var(--accent);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
+
+.start-title p {
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.start-sections {
+  display: flex;
+  gap: 2rem;
+  width: 100%;
+  max-width: 1000px;
+}
+
+.start-section {
+  flex: 1;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+.start-section h2 {
+  color: var(--accent);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Card avventure ── */
+.adventure-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.adventure-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 1rem;
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.adventure-card:hover {
+  border-color: var(--accent);
+  background: #ddd5c0;
+}
+
+.adventure-card h3 {
+  color: var(--gm-color);
+  font-size: 0.95rem;
+}
+
+.adventure-card .meta {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  margin-top: 0.3rem;
+}
+
+.upload-btn {
+  margin-top: 1rem;
+  width: 100%;
+  padding: 0.6rem;
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius);
+  font-family: var(--font-main);
+  font-size: 0.8rem;
+  transition: border-color var(--transition), color var(--transition);
+}
+
+.upload-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Card sessioni ── */
+.session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.session-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 1rem;
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+
+.session-card:hover { border-color: var(--accent); }
+
+.session-card h3 { color: var(--text); font-size: 0.9rem; }
+.session-card .meta { color: var(--text-muted); font-size: 0.75rem; margin-top: 0.3rem; }
+
+.empty-state {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 2rem 0;
+}
+
+/* ── Header di gioco ── */
+#game-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1rem;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  gap: 1rem;
+  box-shadow: var(--shadow);
+}
+
+#game-header .title {
+  color: var(--accent);
+  font-size: 0.8rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+#game-header .controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+#model-select {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 0.3rem 0.5rem;
+  font-family: var(--font-main);
+  font-size: 0.75rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+#mode-toggle {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 0.3rem 0.6rem;
+  font-family: var(--font-main);
+  font-size: 0.75rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition);
+}
+
+#mode-toggle.creative { color: var(--accent); border-color: var(--accent-light); }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-surface); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+/* ── Buttons generici ── */
+.btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+  font-family: var(--font-main);
+  font-size: 0.85rem;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.btn:hover { background: var(--bg-input); border-color: var(--accent-light); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn.primary { border-color: var(--accent); color: var(--accent); background: var(--bg-input); }
+.btn.primary:hover { background: #e8dcc8; }
+.btn.danger { border-color: var(--danger); color: var(--danger-light); }
+
+/* ── Modal creazione personaggio ── */
+#modal-character {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(44, 36, 22, 0.5);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+
+#modal-character.open { display: flex; }
+
+.modal-box {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+.modal-box h2 {
+  color: var(--accent);
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 0.3rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.5rem;
+  font-family: var(--font-main);
+  font-size: 0.85rem;
+  border-radius: var(--radius);
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--accent-light);
+}
+
+.characteristics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+.stat-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 0.5rem;
+}
+
+.stat-box label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+  text-transform: uppercase;
+}
+
+.stat-box input {
+  width: 100%;
+  text-align: center;
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}

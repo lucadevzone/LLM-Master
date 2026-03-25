@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM-Master · Lobby</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    body { display: flex; flex-direction: column; min-height: 100vh; overflow: auto; }
+
+    /* ── Top bar ──────────────────────────────────────────────────────────────── */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .75rem 1.5rem;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .top-bar-title { font-weight: 700; color: var(--accent); letter-spacing: .05em; }
+    .top-bar-right { display: flex; align-items: center; gap: 1rem; font-size: .85rem; color: var(--text-muted); }
+    .btn-logout {
+      padding: .35rem .9rem;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: .85rem;
+    }
+    .btn-logout:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Main content ─────────────────────────────────────────────────────────── */
+    .main-content {
+      flex: 1;
+      padding: 2rem 1.5rem;
+      max-width: 800px;
+      margin: 0 auto;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .lobby-header {
+      margin-bottom: 2rem;
+    }
+    .lobby-header h1 {
+      font-size: 1.4rem;
+      color: var(--accent);
+      margin-bottom: .3rem;
+    }
+    .lobby-header p {
+      color: var(--text-muted);
+      font-size: .9rem;
+    }
+
+    /* ── Room cards ───────────────────────────────────────────────────────────── */
+    .room-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .room-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .room-card:hover { border-color: var(--accent); }
+
+    .room-info { flex: 1; min-width: 0; }
+    .room-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: .25rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .room-meta {
+      font-size: .8rem;
+      color: var(--text-muted);
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: .15rem .5rem;
+      border-radius: 20px;
+      font-size: .75rem;
+      font-weight: 600;
+    }
+    .badge-waiting  { background: #fef3c7; color: #92400e; }
+    .badge-active   { background: #d1fae5; color: #065f46; }
+    .badge-archived { background: #f3f4f6; color: #6b7280; }
+
+    .btn-enter {
+      padding: .55rem 1.4rem;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: .9rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity .15s;
+    }
+    .btn-enter:hover { opacity: .88; }
+    .btn-enter:disabled { opacity: .4; cursor: not-allowed; }
+
+    .empty-state {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 3rem 1rem;
+      font-size: .95rem;
+    }
+    .empty-state p { margin-bottom: .5rem; }
+
+    /* ── Character creation overlay ──────────────────────────────────────────── */
+    .overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.5);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .overlay.open { display: flex; }
+
+    .overlay-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.75rem;
+      width: 100%;
+      max-width: 560px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 30px rgba(0,0,0,.2);
+    }
+    .overlay-box h2 { font-size: 1.1rem; margin-bottom: 1.25rem; color: var(--accent); }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: .6rem;
+      margin-bottom: 1.25rem;
+    }
+    .stat-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: .5rem;
+      text-align: center;
+    }
+    .stat-box .stat-name {
+      font-size: .7rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .stat-box .stat-val {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1.2;
+    }
+    .stat-box .stat-sub {
+      font-size: .65rem;
+      color: var(--text-muted);
+    }
+
+    .derived-row {
+      display: flex;
+      gap: .75rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+    .derived-chip {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: .25rem .75rem;
+      font-size: .8rem;
+    }
+    .derived-chip strong { color: var(--accent); }
+
+    .form-group { margin-bottom: 1rem; }
+    .form-group label {
+      display: block;
+      font-size: .78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: .35rem;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      padding: .55rem .75rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: .9rem;
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none; border-color: var(--accent);
+    }
+    .form-group textarea { resize: vertical; min-height: 60px; }
+
+    .overlay-footer {
+      display: flex;
+      gap: .75rem;
+      justify-content: space-between;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .btn { padding: .5rem 1.1rem; border-radius: 6px; font-size: .9rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { opacity: .9; }
+    .btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-ghost { background: none; border-color: var(--border); color: var(--text-muted); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-reroll { background: none; border-color: var(--border); color: var(--text-muted); font-size: .8rem; padding: .35rem .8rem; }
+    .btn-reroll:hover { border-color: var(--accent); color: var(--accent); }
+
+    .error-msg { color: #c0392b; font-size: .85rem; margin-top: .5rem; }
+
+    .step-indicator {
+      display: flex;
+      gap: .5rem;
+      margin-bottom: 1.5rem;
+    }
+    .step {
+      flex: 1;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+    }
+    .step.done { background: var(--accent); }
+    .step.active { background: var(--accent-light); }
+  </style>
+</head>
+<body>
+
+<!-- ── Top bar ───────────────────────────────────────────────────────────────── -->
+<div class="top-bar">
+  <span class="top-bar-title">LLM · MASTER</span>
+  <div class="top-bar-right">
+    <span id="player-name-display"></span>
+    <button class="btn-logout" id="btn-logout">Esci</button>
+  </div>
+</div>
+
+<!-- ── Lobby ─────────────────────────────────────────────────────────────────── -->
+<div class="main-content">
+  <div class="lobby-header">
+    <h1>Le tue stanze</h1>
+    <p>Scegli una stanza per iniziare o continuare la tua avventura.</p>
+  </div>
+  <div class="room-list" id="room-list">
+    <div class="empty-state"><p>Caricamento...</p></div>
+  </div>
+</div>
+
+<!-- ── Overlay: creazione personaggio ────────────────────────────────────────── -->
+<div class="overlay" id="overlay-char">
+  <div class="overlay-box">
+    <h2>Crea il tuo personaggio</h2>
+
+    <div class="step-indicator">
+      <div class="step active" id="step-1"></div>
+      <div class="step" id="step-2"></div>
+    </div>
+
+    <!-- Passo 1: Statistiche -->
+    <div id="char-step-1">
+      <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:1rem;">
+        Le caratteristiche sono state generate casualmente secondo le regole di Call of Cthulhu 7a Ed.
+      </p>
+
+      <div class="stat-grid" id="stat-grid"></div>
+      <div class="derived-row" id="derived-row"></div>
+
+      <button class="btn btn-reroll" id="btn-reroll">↺ Rigenera caratteristiche</button>
+
+      <div style="margin-top:1.25rem;">
+        <div class="form-group">
+          <label>Nome personaggio</label>
+          <input type="text" id="char-name" required placeholder="es. Herbert West">
+        </div>
+        <div class="form-group">
+          <label>Occupazione</label>
+          <select id="char-occupation">
+            <option value="">— Seleziona —</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="overlay-footer">
+        <button class="btn btn-ghost" id="btn-cancel-char">Annulla</button>
+        <button class="btn btn-primary" id="btn-next-char">Avanti →</button>
+      </div>
+    </div>
+
+    <!-- Passo 2: Background -->
+    <div id="char-step-2" style="display:none;">
+      <div class="form-group">
+        <label>Background / storia del personaggio</label>
+        <textarea id="char-backstory" rows="4" placeholder="Breve descrizione del passato, motivazioni, carattere..."></textarea>
+      </div>
+
+      <div class="overlay-footer">
+        <button class="btn btn-ghost" id="btn-back-char">← Indietro</button>
+        <button class="btn btn-primary" id="btn-start-game">Inizia l'avventura</button>
+      </div>
+      <div class="error-msg" id="err-char"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────────
+let currentRoom = null;
+let rolledStats = null;
+let occupations = [];
+
+// ── Utility ────────────────────────────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function badgeHtml(status) {
+  const map = { waiting: ['badge-waiting', 'In attesa'], active: ['badge-active', 'In corso'], archived: ['badge-archived', 'Archiviata'] };
+  const [cls, label] = map[status] || ['badge-waiting', status];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+// ── Auth ───────────────────────────────────────────────────────────────────────
+(async () => {
+  try {
+    const me = await api('/api/auth/me');
+    if (me.role !== 'player') { window.location.href = '/login'; return; }
+    document.getElementById('player-name-display').textContent = me.name || me.email;
+  } catch {
+    window.location.href = '/login';
+    return;
+  }
+  loadRooms();
+  loadOccupations();
+})();
+
+document.getElementById('btn-logout').addEventListener('click', async () => {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  window.location.href = '/login';
+});
+
+// ── Rooms ──────────────────────────────────────────────────────────────────────
+async function loadRooms() {
+  const list = document.getElementById('room-list');
+  try {
+    const rooms = await api('/api/rooms');
+    if (!rooms.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <p>Non hai ancora stanze assegnate.</p>
+          <p style="font-size:.8rem">Attendi che il master ti assegni un'avventura.</p>
+        </div>`;
+      return;
+    }
+    list.innerHTML = rooms.map(r => `
+      <div class="room-card" id="room-${r.id}">
+        <div class="room-info">
+          <div class="room-name">${r.name}</div>
+          <div class="room-meta">
+            <span>${badgeHtml(r.status)}</span>
+            ${r.last_active ? `<span>Ultima attività: ${fmtDate(r.last_active)}</span>` : ''}
+          </div>
+        </div>
+        <button class="btn-enter" onclick="enterRoom('${r.id}', '${r.status}')"
+                ${r.status === 'archived' ? 'disabled' : ''}>
+          ${r.status === 'active' ? 'Continua' : r.status === 'archived' ? 'Archiviata' : 'Entra'}
+        </button>
+      </div>`).join('');
+  } catch (e) {
+    list.innerHTML = `<div class="empty-state"><p>Errore: ${e.message}</p></div>`;
+  }
+}
+
+// ── Enter room ─────────────────────────────────────────────────────────────────
+async function enterRoom(roomId, status) {
+  if (status === 'archived') return;
+  try {
+    const result = await api(`/api/rooms/${roomId}/enter`, { method: 'POST' });
+
+    if (!result.needs_character) {
+      // Sessione già avviata: vai direttamente al gioco
+      window.location.href = `/?session=${result.session_id}`;
+      return;
+    }
+
+    // Primo accesso: crea personaggio
+    currentRoom = roomId;
+    await openCharacterCreation();
+  } catch (e) {
+    alert('Errore: ' + e.message);
+  }
+}
+
+// ── Character creation ─────────────────────────────────────────────────────────
+async function loadOccupations() {
+  try {
+    occupations = await api('/api/characters/list/occupations');
+    const sel = document.getElementById('char-occupation');
+    sel.innerHTML = '<option value="">— Seleziona —</option>' +
+      occupations.map(o => `<option value="${o.id}">${o.label || o.id}</option>`).join('');
+  } catch (_) {
+    // Fallback: usa poche occupazioni di default
+    const defaults = [
+      ['antiquarian', 'Antiquario'], ['artist', 'Artista'], ['author', 'Autore'],
+      ['doctor', 'Dottore'], ['investigator', 'Investigatore privato'], ['journalist', 'Giornalista'],
+      ['professor', 'Professore'], ['police_officer', 'Agente di polizia'], ['soldier', 'Soldato'],
+    ];
+    const sel = document.getElementById('char-occupation');
+    sel.innerHTML = '<option value="">— Seleziona —</option>' +
+      defaults.map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+  }
+}
+
+async function openCharacterCreation() {
+  await rollStats();
+  document.getElementById('char-step-1').style.display = 'block';
+  document.getElementById('char-step-2').style.display = 'none';
+  document.getElementById('step-1').className = 'step active';
+  document.getElementById('step-2').className = 'step';
+  document.getElementById('char-name').value = '';
+  document.getElementById('char-backstory').value = '';
+  document.getElementById('err-char').textContent = '';
+  document.getElementById('overlay-char').classList.add('open');
+}
+
+async function rollStats() {
+  try {
+    rolledStats = await api('/api/characters/roll/characteristics');
+    renderStats();
+  } catch (e) {
+    alert('Errore nel tiro caratteristiche: ' + e.message);
+  }
+}
+
+function renderStats() {
+  if (!rolledStats) return;
+  const s = rolledStats.characteristics;
+  const d = rolledStats.derived;
+
+  const statNames = { STR: 'Forza', CON: 'Cos', SIZ: 'Taglia', DEX: 'Des', APP: 'App', INT: 'Int', POW: 'Vol', EDU: 'Edu' };
+
+  document.getElementById('stat-grid').innerHTML = Object.entries(s).map(([k, v]) => `
+    <div class="stat-box">
+      <div class="stat-name">${k}</div>
+      <div class="stat-val">${v}</div>
+      <div class="stat-sub">${statNames[k] || k}</div>
+    </div>`).join('');
+
+  document.getElementById('derived-row').innerHTML = [
+    `HP: <strong>${d.hp_max}</strong>`,
+    `MP: <strong>${d.mp_max}</strong>`,
+    `SAN: <strong>${d.sanity_max}</strong>`,
+    `Luck: <strong>${d.luck}</strong>`,
+    `DB: <strong>${d.damage_bonus}</strong>`,
+  ].map(t => `<div class="derived-chip">${t}</div>`).join('');
+}
+
+document.getElementById('btn-reroll').addEventListener('click', rollStats);
+document.getElementById('btn-cancel-char').addEventListener('click', () => {
+  document.getElementById('overlay-char').classList.remove('open');
+  currentRoom = null;
+});
+
+document.getElementById('btn-next-char').addEventListener('click', () => {
+  const name = document.getElementById('char-name').value.trim();
+  const occ = document.getElementById('char-occupation').value;
+  if (!name) { alert('Inserisci il nome del personaggio.'); return; }
+  if (!occ) { alert('Seleziona un\'occupazione.'); return; }
+  document.getElementById('char-step-1').style.display = 'none';
+  document.getElementById('char-step-2').style.display = 'block';
+  document.getElementById('step-1').className = 'step done';
+  document.getElementById('step-2').className = 'step active';
+});
+
+document.getElementById('btn-back-char').addEventListener('click', () => {
+  document.getElementById('char-step-1').style.display = 'block';
+  document.getElementById('char-step-2').style.display = 'none';
+  document.getElementById('step-1').className = 'step active';
+  document.getElementById('step-2').className = 'step';
+});
+
+document.getElementById('btn-start-game').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-start-game');
+  const err = document.getElementById('err-char');
+  err.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'Avvio...';
+
+  try {
+    // 1. Crea personaggio
+    const charRes = await api('/api/characters', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: document.getElementById('char-name').value.trim(),
+        occupation: document.getElementById('char-occupation').value,
+        characteristics: rolledStats.characteristics,
+        backstory: document.getElementById('char-backstory').value.trim(),
+      }),
+    });
+
+    // 2. Trova adventure_id dalla room (lo passiamo nel body)
+    // Per crearlo, la room stessa ha adventure_id — recuperiamo dalla lista già caricata
+    const rooms = await api('/api/rooms');
+    const room = rooms.find(r => r.id === currentRoom);
+    if (!room) throw new Error('Stanza non trovata');
+
+    // 3. Crea sessione
+    const sessRes = await api('/api/sessions', {
+      method: 'POST',
+      body: JSON.stringify({
+        adventure_id: room.adventure_id,
+        character_id: charRes.id,
+      }),
+    });
+
+    // 4. Collega sessione e personaggio alla room
+    await api(`/api/rooms/${currentRoom}/start`, {
+      method: 'POST',
+      body: JSON.stringify({
+        character_id: charRes.id,
+        session_id: sessRes.id,
+      }),
+    });
+
+    // 5. Vai al gioco
+    window.location.href = `/?session=${sessRes.id}`;
+  } catch (e) {
+    err.textContent = 'Errore: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = 'Inizia l\'avventura';
+  }
+});
+</script>
+</body>
+</html>

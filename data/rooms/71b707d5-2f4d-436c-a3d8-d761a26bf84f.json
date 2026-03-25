@@ -1,0 +1,11 @@
+{
+  "id": "71b707d5-2f4d-436c-a3d8-d761a26bf84f",
+  "name": "Prima Avventura",
+  "adventure_id": "la_chiamata_di_cthulhu",
+  "player_id": "493c4237-4f82-47d7-aa97-8fc0b3009fed",
+  "session_id": "42b4539b-15ab-4caf-afa7-c772b170d495",
+  "character_id": "f9792faf-4a76-4477-9e06-f0d0b3acd1ea",
+  "status": "active",
+  "created_at": "2026-03-25T15:01:11.261Z",
+  "last_active": "2026-03-25T15:04:06.105Z"
+}

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM-Master · Call of Cthulhu</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/chat.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ══ SCHERMATA DI AVVIO ══════════════════════════════════════════════════ -->
+  <div id="screen-start">
+    <div class="start-title">
+      <h1>LLM · MASTER</h1>
+      <p>Call of Cthulhu · Gioco di ruolo testuale con Game Master artificiale</p>
+    </div>
+
+    <div class="start-sections">
+      <!-- Continua partita -->
+      <div class="start-section">
+        <h2>Continua partita</h2>
+        <div id="session-list" class="session-list">
+          <div class="empty-state">Caricamento...</div>
+        </div>
+      </div>
+
+      <!-- Nuova avventura -->
+      <div class="start-section">
+        <h2>Nuova avventura</h2>
+        <div id="adventure-grid" class="adventure-grid">
+          <div class="empty-state">Caricamento...</div>
+        </div>
+        <button class="upload-btn" id="upload-adventure-btn">
+          + Carica avventura (.md)
+        </button>
+        <input type="file" id="upload-file-input" accept=".md,.yaml,.yml" style="display:none">
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SCHERMATA DI GIOCO ══════════════════════════════════════════════════ -->
+  <div id="screen-game">
+
+    <!-- Header -->
+    <div id="game-header">
+      <div class="title" id="game-title">LLM-Master</div>
+      <div class="controls">
+        <select id="model-select" title="Modello LLM"></select>
+        <button id="mode-toggle" class="creative" title="Modalità: creativa (2 fasi) o veloce (1 fase)">Creativo</button>
+      </div>
+    </div>
+
+    <!-- Body: chat + scheda -->
+    <div id="game-body">
+
+      <!-- Pannello chat -->
+      <div id="chat-panel">
+        <div id="messages"></div>
+        <div id="status-bar"><span id="status-text"></span></div>
+        <div id="action-area"></div>
+        <div id="input-area">
+          <textarea
+            id="input-text"
+            placeholder="Cosa fai? (Invio per inviare, Shift+Invio per andare a capo)"
+            rows="1"
+          ></textarea>
+          <button id="send-btn">Invia</button>
+        </div>
+      </div>
+
+      <!-- Pannello scheda personaggio -->
+      <div id="character-panel">
+        <div class="empty-state" style="padding-top: 2rem">Nessun personaggio</div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ MODAL CREAZIONE PERSONAGGIO ══════════════════════════════════════════ -->
+<div id="modal-character">
+  <div class="modal-box">
+    <h2>Crea il tuo personaggio</h2>
+    <form id="form-character">
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+        <div class="form-group">
+          <label>Nome</label>
+          <input type="text" name="char-name" required placeholder="es. Emilio Ferretti">
+        </div>
+        <div class="form-group">
+          <label>Occupazione</label>
+          <input type="text" name="char-occupation" required placeholder="es. Professore">
+        </div>
+        <div class="form-group">
+          <label>Età</label>
+          <input type="number" name="char-age" value="35" min="18" max="90">
+        </div>
+        <div class="form-group">
+          <label>Città di residenza</label>
+          <input type="text" name="char-residence" placeholder="es. Napoli">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top: 1rem;">
+        <label>Caratteristiche (×5, 15-90)</label>
+        <div class="characteristics-grid">
+          <div class="stat-box">
+            <label>STR</label><input type="number" id="stat-STR" min="15" max="90" value="50">
+          </div>
+          <div class="stat-box">
+            <label>CON</label><input type="number" id="stat-CON" min="15" max="90" value="50">
+          </div>
+          <div class="stat-box">
+            <label>SIZ</label><input type="number" id="stat-SIZ" min="40" max="90" value="55">
+          </div>
+          <div class="stat-box">
+            <label>DEX</label><input type="number" id="stat-DEX" min="15" max="90" value="50">
+          </div>
+          <div class="stat-box">
+            <label>APP</label><input type="number" id="stat-APP" min="15" max="90" value="50">
+          </div>
+          <div class="stat-box">
+            <label>INT</label><input type="number" id="stat-INT" min="40" max="90" value="60">
+          </div>
+          <div class="stat-box">
+            <label>POW</label><input type="number" id="stat-POW" min="15" max="90" value="50">
+          </div>
+          <div class="stat-box">
+            <label>EDU</label><input type="number" id="stat-EDU" min="40" max="90" value="65">
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn" id="btn-reroll">Tira dadi</button>
+        <button type="button" class="btn" id="btn-cancel-char">Annulla</button>
+        <button type="submit" class="btn primary">Inizia avventura</button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>

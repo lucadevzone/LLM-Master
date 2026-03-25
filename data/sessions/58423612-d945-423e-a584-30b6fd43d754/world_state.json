@@ -1,0 +1,17 @@
+{
+  "adventure_id": "la_chiamata_di_cthulhu",
+  "npcs": {
+    "Notaio Thurston": {
+      "name": "Notaio Thurston",
+      "knowledge_revealed": [
+        "È il notaio incaricato della gestione dell'eredità del prozio. Ha un aspetto professionale, ma sembra leggermente nervoso."
+      ]
+    }
+  },
+  "locations": {},
+  "flags": {},
+  "active_threats": [],
+  "clues_found": [],
+  "current_scene": "Providence, inizio estate. Il treno è appena arrivato alla stazione di Providence.",
+  "notes": []
+}

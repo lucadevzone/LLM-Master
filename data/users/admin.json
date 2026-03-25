@@ -1,0 +1,8 @@
+{
+  "id": "admin",
+  "username": "admin",
+  "role": "admin",
+  "passwordHash": "a94f5245368c0e7744565b5bd4ecf6d3cf482accf3f80ee3de88942a7131af56329f373ef1d4baae930e51282e5fbd773c5da6e4e0681bd10546ce08dce3c907",
+  "salt": "7495c682160a1dd95aed9dfb09017d99",
+  "created_at": "2026-03-25T14:57:14.923Z"
+}
