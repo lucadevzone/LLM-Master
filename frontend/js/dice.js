@@ -1,5 +1,5 @@
 /**
- * UI per i tiri dado: pulsante interattivo, animazione, risultato.
+ * UI per i tiri dado: pulsante nel row input, animazione nell'action area.
  */
 
 import { api } from './api.js';
@@ -24,86 +24,74 @@ const OUTCOME_ICONS = {
 };
 
 /**
- * Renderizza il pulsante dado nell'action area.
+ * Mostra il pulsante dado nel row input con skill e tipo di dado.
  * @param {Object} diceData - { skill, skill_value, difficulty, reason, on_success, on_failure, on_extreme }
  * @param {string} sessionId
  */
 export function renderDiceButton(diceData, sessionId) {
-  const btn = document.createElement('button');
-  btn.className = 'dice-btn';
-  btn.innerHTML = `
-    <span class="dice-icon">⬡</span>
-    <span class="skill-name">${diceData.skill}</span>
-    <span class="skill-value">${diceData.skill_value}%</span>
-    <span class="dice-reason">[${diceData.difficulty}]</span>
-  `;
+  const btn = document.getElementById('dice-action-btn');
+  if (!btn) return;
 
-  if (diceData.reason) {
-    btn.title = diceData.reason;
-  }
+  btn.textContent = `⬡ ${diceData.skill} (d100)`;
+  btn.title = diceData.reason || `Prova di ${diceData.skill}`;
+  btn.style.display = '';
+  btn.disabled = false;
 
-  btn.addEventListener('click', () => {
-    btn.disabled = true;
-    btn.style.animation = 'none';
-    performRoll(diceData, sessionId, btn);
-  });
-
-  actionArea.appendChild(btn);
+  // Sostituisce eventuali handler precedenti
+  btn.onclick = () => {
+    btn.style.display = 'none';
+    btn.onclick = null;
+    performRoll(diceData, sessionId);
+  };
 }
 
-async function performRoll(diceData, sessionId, btn) {
-  // Animazione dado che "gira"
-  btn.innerHTML = `<span class="dice-icon">⬡</span> <span>...</span>`;
+async function performRoll(diceData, sessionId) {
+  // Elemento animazione nell'action area
+  const animEl = document.createElement('div');
+  animEl.className = 'dice-rolling-anim';
+  animEl.textContent = '⬡ ...';
+  actionArea.appendChild(animEl);
 
-  // Piccola pausa drammatica
   await sleep(300);
-
-  // Genera il roll localmente per l'animazione
   const rawRoll = Math.floor(Math.random() * 100) + 1;
-
-  // Animazione contatore
-  await animateRoll(btn, rawRoll);
+  await animateRoll(animEl, rawRoll);
 
   try {
-    // Invia al server per registrazione e risposta GM
     const result = await api.diceResult(sessionId, diceData.skill, rawRoll);
-
     clearActionArea();
 
-    // Mostra risultato
-    const outcomeClass = result.outcome;
     const icon = OUTCOME_ICONS[result.outcome] || '●';
     const label = OUTCOME_LABELS[result.outcome] || result.outcome;
     appendSystemMessage(
       `${icon} ${diceData.skill}: ${result.roll} / ${result.skillValue} — ${label}`,
-      outcomeClass
+      result.outcome
     );
 
-    // Se il GM ha un'informazione contestuale (on_success/on_failure), mostrala
-    const context = result.outcome === 'failure' ? diceData.on_failure
-      : result.outcome === 'fumble' ? diceData.on_failure
-      : result.outcome === 'extreme' ? diceData.on_extreme
-      : diceData.on_success;
+    const context = (result.outcome === 'failure' || result.outcome === 'fumble')
+      ? diceData.on_failure
+      : result.outcome === 'extreme'
+        ? diceData.on_extreme
+        : diceData.on_success;
 
     if (context) {
-      appendSystemMessage(context, result.outcome === 'failure' || result.outcome === 'fumble' ? 'failure' : 'success');
+      appendSystemMessage(
+        context,
+        (result.outcome === 'failure' || result.outcome === 'fumble') ? 'failure' : 'success'
+      );
     }
 
-    // Push disponibile?
     if (result.canPush) {
-      renderPushButton(diceData, sessionId, rawRoll);
+      renderPushButton(diceData, sessionId);
     } else {
-      // Il GM risponde al risultato
       openGMStream(sessionId);
     }
-
   } catch (err) {
     clearActionArea();
     appendSystemMessage(`Errore tiro: ${err.message}`, 'failure');
   }
 }
 
-function renderPushButton(diceData, sessionId, previousRoll) {
+function renderPushButton(diceData, sessionId) {
   const pushBtn = document.createElement('button');
   pushBtn.className = 'action-btn';
   pushBtn.textContent = `Spingere il tiro (${diceData.skill}) — a rischio!`;
@@ -114,7 +102,6 @@ function renderPushButton(diceData, sessionId, previousRoll) {
 
   pushBtn.addEventListener('click', async () => {
     clearActionArea();
-    // Nuovo tiro con pushed=true
     const newRoll = Math.floor(Math.random() * 100) + 1;
     const result = await api.diceResult(sessionId, diceData.skill, newRoll);
     appendSystemMessage(
@@ -133,14 +120,14 @@ function renderPushButton(diceData, sessionId, previousRoll) {
   actionArea.appendChild(skipBtn);
 }
 
-async function animateRoll(btn, finalValue) {
+async function animateRoll(el, finalValue) {
   const frames = 12;
   for (let i = 0; i < frames; i++) {
     const fake = Math.floor(Math.random() * 100) + 1;
-    btn.innerHTML = `<span class="dice-icon">⬡</span> <strong>${String(fake).padStart(2, '0')}</strong>`;
+    el.textContent = `⬡ ${String(fake).padStart(2, '0')}`;
     await sleep(50 + i * 8);
   }
-  btn.innerHTML = `<span class="dice-icon">⬡</span> <strong>${finalValue}</strong>`;
+  el.textContent = `⬡ ${finalValue}`;
   await sleep(200);
 }
 

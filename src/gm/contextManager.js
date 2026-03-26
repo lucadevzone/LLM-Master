@@ -1,7 +1,7 @@
 import { config } from '../config.js';
 import { readJson, writeJson } from '../persistence/fileStore.js';
 import { paths } from '../persistence/paths.js';
-import { chat } from './ollamaClient.js';
+import { createClient } from './llmClient.js';
 import { buildSummaryPrompt } from './promptBuilder.js';
 
 /**
@@ -32,8 +32,9 @@ export function buildContext(sessionId) {
  *
  * @param {string} sessionId
  * @param {number} turnCount
+ * @param {object} llmConfig - { provider, creativeModel, fastModel }
  */
-export async function maybeGenerateSummary(sessionId, turnCount) {
+export async function maybeGenerateSummary(sessionId, turnCount, llmConfig) {
   const threshold = config.summaryThreshold;
   const maxTurns = config.maxHistoryTurns;
 
@@ -59,7 +60,8 @@ export async function maybeGenerateSummary(sessionId, turnCount) {
 
   try {
     const summaryPrompt = buildSummaryPrompt(toSummarize);
-    const summaryText = await chat(config.fastModel, [
+    const client = createClient(llmConfig);
+    const summaryText = await client.chat(llmConfig.fastModel, [
       { role: 'user', content: summaryPrompt },
     ], { temperature: 0.3 });
 

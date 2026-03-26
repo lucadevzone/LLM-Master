@@ -1,11 +1,11 @@
----
+---                                                                                                                                                  
 title: The Fate of Atlantis
 era: Anni '20, Paris (Europe)
 tone: horror cosmico, investigativo, atmosfera lovecraftiana
 players: 1-5
 tags: [classico, indagine, sanità, mito]
----
-
+---                                                                                                                                                  
+                                                                                                                                          
 # Premessa
 
 Parigi, estate 1936. L'Esposizione Universale è in piena preparazione e la città pullula di diplomatici, accademici, collezionisti e agenti segreti. Nell'ombra della Belle Époque si muovono forze che cercano qualcosa di molto più antico della Francia moderna: una civiltà sepolta sotto il Mediterraneo, un patto dimenticato con qualcosa che non dovrebbe esistere.
@@ -299,5 +299,4 @@ I nazisti arrivano a Creta con 24-48 ore di vantaggio. L'Atto II inizia con i PG
 **Gli antagonosti**: Non sono stupidi (quasi sempre). Se il personaggio fa troppe domande nei posti sbagliati, lo sanno. Ma non agiscono subito — prima osservano. La paranoia è parte dell'esperienza.
 
 **La sanità**: Usala con parsimonia ma inesorabilmente. Non ogni scena deve costare Sanità. Ma quando costa, deve essere sentito.
-
 

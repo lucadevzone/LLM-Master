@@ -285,25 +285,59 @@
 
 <!-- ══ Modal: Crea stanza ════════════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="modal-create-room">
-  <div class="modal">
+  <div class="modal" style="max-width:520px">
     <h3>Nuova stanza</h3>
     <form id="form-create-room">
+
       <div class="form-group">
         <label>Avventura</label>
         <select id="room-adventure" required>
           <option value="">— Seleziona —</option>
         </select>
       </div>
+
       <div class="form-group">
-        <label>Giocatore</label>
-        <select id="room-player" required>
-          <option value="">— Seleziona —</option>
+        <label>Giocatori (seleziona uno o più)</label>
+        <div id="room-players-list" style="max-height:120px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:.5rem;display:flex;flex-direction:column;gap:.35rem;background:var(--bg);">
+          <span style="color:var(--text-muted);font-size:.82rem">Caricamento…</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Provider LLM</label>
+        <select id="room-provider">
+          <option value="ollama">Ollama (locale)</option>
+          <option value="openai">OpenAI (ChatGPT)</option>
         </select>
       </div>
-      <div class="form-group">
-        <label>Nome stanza (opzionale)</label>
-        <input type="text" id="room-name" placeholder="lascia vuoto per nome automatico">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div class="form-group">
+          <label>Modello creativo</label>
+          <input type="text" id="room-creative-model" placeholder="es. llama3.1:8b">
+        </div>
+        <div class="form-group">
+          <label>Modello veloce</label>
+          <input type="text" id="room-fast-model" placeholder="es. llama3.1:8b">
+        </div>
       </div>
+
+      <div class="form-group" id="group-apikey" style="display:none">
+        <label>OpenAI API Key</label>
+        <input type="password" id="room-apikey" placeholder="sk-...">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div class="form-group">
+          <label>Durata sessione (min, opz.)</label>
+          <input type="number" id="room-duration" min="30" max="480" placeholder="es. 120">
+        </div>
+        <div class="form-group">
+          <label>Nome stanza (opz.)</label>
+          <input type="text" id="room-name" placeholder="automatico">
+        </div>
+      </div>
+
       <div class="error-msg" id="err-create-room"></div>
       <div class="modal-footer">
         <button type="button" class="btn btn-ghost" data-close="modal-create-room">Annulla</button>
@@ -532,7 +566,7 @@ async function loadRooms() {
       <tr>
         <td><strong>${r.name}</strong></td>
         <td>${r.adventure_id}</td>
-        <td>${r.player_name}</td>
+        <td>${(r.players_info || []).map(p => p.name).join(', ') || r.player_name || '—'}</td>
         <td>${badgeHtml(r.status)}</td>
         <td>${fmtDate(r.created_at)}</td>
         <td style="text-align:right">
@@ -557,17 +591,33 @@ async function archiveRoom(id, name) {
   }
 }
 
+document.getElementById('room-provider').addEventListener('change', () => {
+  const isOpenAI = document.getElementById('room-provider').value === 'openai';
+  document.getElementById('group-apikey').style.display = isOpenAI ? '' : 'none';
+});
+
 document.getElementById('btn-create-room').addEventListener('click', async () => {
   document.getElementById('err-create-room').textContent = '';
   document.getElementById('form-create-room').reset();
-  // Popola select avventure
+  document.getElementById('group-apikey').style.display = 'none';
+
+  // Popola avventure
   const selAdv = document.getElementById('room-adventure');
   selAdv.innerHTML = '<option value="">— Seleziona —</option>' +
     adventures.map(a => `<option value="${a.id}">${a.title}</option>`).join('');
-  // Popola select giocatori
-  const selPl = document.getElementById('room-player');
-  selPl.innerHTML = '<option value="">— Seleziona —</option>' +
-    players.map(p => `<option value="${p.id}">${p.name} (${p.email})</option>`).join('');
+
+  // Popola lista giocatori con checkbox
+  const listEl = document.getElementById('room-players-list');
+  if (!players.length) {
+    listEl.innerHTML = '<span style="color:var(--text-muted);font-size:.82rem">Nessun giocatore disponibile.</span>';
+  } else {
+    listEl.innerHTML = players.map(p => `
+      <label style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;cursor:pointer">
+        <input type="checkbox" name="room-player-check" value="${p.id}">
+        <span>${p.name} <span style="color:var(--text-muted);font-size:.75rem">(${p.email})</span></span>
+      </label>`).join('');
+  }
+
   openModal('modal-create-room');
 });
 
@@ -578,14 +628,32 @@ document.getElementById('form-create-room').addEventListener('submit', async (e)
   const btn = e.target.querySelector('[type=submit]');
   btn.disabled = true;
   try {
-    await api('/api/rooms', {
-      method: 'POST',
-      body: JSON.stringify({
-        adventure_id: document.getElementById('room-adventure').value,
-        player_id: document.getElementById('room-player').value,
-        name: document.getElementById('room-name').value.trim() || undefined,
-      }),
-    });
+    const playerIds = [...document.querySelectorAll('[name=room-player-check]:checked')].map(cb => cb.value);
+    if (!playerIds.length) throw new Error('Seleziona almeno un giocatore');
+
+    const provider = document.getElementById('room-provider').value;
+    const creativeModel = document.getElementById('room-creative-model').value.trim();
+    const fastModel = document.getElementById('room-fast-model').value.trim();
+    const apiKey = document.getElementById('room-apikey').value.trim();
+    const duration = parseInt(document.getElementById('room-duration').value, 10) || null;
+
+    const body = {
+      adventure_id: document.getElementById('room-adventure').value,
+      player_ids: playerIds,
+      name: document.getElementById('room-name').value.trim() || undefined,
+      session_duration_minutes: duration || undefined,
+    };
+
+    if (creativeModel || fastModel) {
+      body.llmConfig = {
+        provider,
+        creativeModel: creativeModel || 'llama3.1:8b',
+        fastModel: fastModel || creativeModel || 'llama3.1:8b',
+        ...(apiKey ? { apiKey } : {}),
+      };
+    }
+
+    await api('/api/rooms', { method: 'POST', body: JSON.stringify(body) });
     closeModal('modal-create-room');
     loadRooms();
     document.querySelector('[data-tab="rooms"]').click();

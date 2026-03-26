@@ -1,19 +1,8 @@
 import { Router } from 'express';
-import { listModels } from '../gm/ollamaClient.js';
 import { readJson } from '../persistence/fileStore.js';
 import { paths } from '../persistence/paths.js';
 
 const router = Router();
-
-// GET /api/models — lista modelli Ollama disponibili
-router.get('/models', async (req, res) => {
-  try {
-    const models = await listModels();
-    res.json(models);
-  } catch (err) {
-    res.status(503).json({ error: `Ollama non raggiungibile: ${err.message}` });
-  }
-});
 
 // GET /api/debug/session/:id — dump stato completo sessione (dev only)
 router.get('/debug/session/:id', (req, res) => {

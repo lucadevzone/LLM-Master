@@ -51,6 +51,8 @@ export function createCharacter({ id, meta, characteristics, skillAllocations = 
       injuries_scars: backstory.injuries_scars || '',
     },
     mythos_knowledge: 0,
+    personal_diary: [],   // eventi e annotazioni di sessione (auto-popolato dal sistema)
+    player_notes: '',     // note libere del giocatore (editabili)
   };
 }
 

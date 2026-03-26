@@ -1,27 +1,27 @@
 {
-  "id": "30c53dda-ab8c-4971-a8e5-4922fbd0fd30",
-  "created_at": "2026-03-25T14:10:56.121Z",
+  "id": "474ff697-916a-44f6-a13f-9060344cc9f6",
+  "created_at": "2026-03-26T17:21:16.046Z",
   "meta": {
-    "name": "AAA BBB",
-    "occupation": "LLL",
-    "age": 35,
+    "name": "Fasullo",
+    "occupation": "Medico",
+    "age": 30,
     "sex": "",
     "birthplace": "",
-    "residence": "Pa"
+    "residence": ""
   },
   "characteristics": {
-    "STR": 40,
-    "CON": 70,
-    "SIZ": 50,
-    "DEX": 65,
-    "APP": 45,
-    "INT": 65,
+    "STR": 55,
+    "CON": 30,
+    "SIZ": 65,
+    "DEX": 40,
+    "APP": 60,
+    "INT": 70,
     "POW": 50,
-    "EDU": 90
+    "EDU": 65
   },
   "derived": {
-    "hp_max": 12,
-    "hp_current": 12,
+    "hp_max": 9,
+    "hp_current": 9,
     "mp_max": 10,
     "mp_current": 10,
     "sanity_max": 250,
@@ -81,5 +81,7 @@
     "traits": "",
     "injuries_scars": ""
   },
-  "mythos_knowledge": 0
+  "mythos_knowledge": 0,
+  "personal_diary": [],
+  "player_notes": ""
 }

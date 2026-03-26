@@ -3,10 +3,16 @@
  */
 
 import { api } from './api.js';
-
-const config = { defaultModel: 'llama3.1:8b' };
-import { setSession, sendPlayerAction, appendSystemMessage } from './chat.js';
-import { initCharacterPanel, addClueToPanel } from './characterSheet.js';
+import {
+  setSession,
+  sendPlayerAction,
+  appendSystemMessage,
+  initMultiplayer,
+  openPersistentStream,
+  openGMStream,
+  loadHistory,
+} from './chat.js';
+import { initCharacterPanel } from './characterSheet.js';
 
 // ── Stato ─────────────────────────────────────────────────────────────────────
 
@@ -15,13 +21,31 @@ let state = {
   characterId: null,
   adventureId: null,
   pendingAdventureId: null,
-  currentModel: null,   // modello attivo, usato per ri-applicare dopo load dropdown
+  myPlayerId: null,
+  isMultiplayer: false,
 };
 
-// ── Init ─────────────────────────────────────────────────────────────────────
+// ── Init ──────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', async () => {
-  await loadStartScreen();
+  // Carica identità player
+  try {
+    const me = await api.getMe();
+    state.myPlayerId = me.id;
+  } catch (_) {}
+
+  const params = new URLSearchParams(window.location.search);
+  const sessionParam = params.get('session');
+  const playerParam = params.get('player');
+
+  if (sessionParam) {
+    // Entrata diretta da lobby con sessione già creata
+    await resumeSession(sessionParam, playerParam || state.myPlayerId);
+  } else {
+    // Schermata di avvio (flusso single-player legacy)
+    await loadStartScreen();
+  }
+
   setupInputHandlers();
   setupModelSelector();
 });
@@ -77,7 +101,7 @@ function renderSessions(sessions) {
       <h3>${s.character_name}</h3>
       <div class="meta">${s.adventure_id} · ${s.current_scene || 'inizio'} · ${date}</div>
     `;
-    card.addEventListener('click', () => resumeSession(s.id));
+    card.addEventListener('click', () => resumeSession(s.id, null));
     list.appendChild(card);
   }
 }
@@ -101,14 +125,13 @@ document.getElementById('upload-file-input').addEventListener('change', async (e
   e.target.value = '';
 });
 
-// ── Creazione personaggio ─────────────────────────────────────────────────────
+// ── Creazione personaggio (single-player) ─────────────────────────────────────
 
 async function openCharacterCreation(adventureId) {
   state.pendingAdventureId = adventureId;
   const modal = document.getElementById('modal-character');
   modal.classList.add('open');
 
-  // Tira caratteristiche casuali
   try {
     const chars = await api.rollCharacteristics();
     for (const [stat, val] of Object.entries(chars)) {
@@ -170,31 +193,63 @@ async function startNewSession(adventureId, character) {
 
     state.sessionId = session.id;
     state.adventureId = adventureId;
+    state.isMultiplayer = false;
 
     enterGameScreen(session, character);
 
-    // Primo messaggio GM (apertura avventura)
     await api.playerTurn(session.id, '[INIZIO AVVENTURA]');
-    import('./chat.js').then(({ openGMStream }) => openGMStream(session.id));
+    openGMStream(session.id);
   } catch (err) {
     alert(`Errore avvio sessione: ${err.message}`);
   }
 }
 
-async function resumeSession(sessionId) {
+async function resumeSession(sessionId, playerId) {
   try {
     const session = await api.getSession(sessionId);
-    const character = await api.getCharacter(session.players[0].character_id);
+    const isMulti = session.players.length > 1 && session.players[0]?.player_id !== null;
 
     state.sessionId = sessionId;
-    state.characterId = character.id;
+    state.isMultiplayer = isMulti;
+
+    let character = null;
+    if (isMulti) {
+      const pid = playerId || state.myPlayerId;
+      const playerEntry = session.players.find((p) => p.player_id === pid);
+      if (playerEntry?.character_id) {
+        character = await api.getCharacter(playerEntry.character_id);
+        state.characterId = playerEntry.character_id;
+      }
+    } else {
+      const charId = session.players[0]?.character_id;
+      if (charId) {
+        character = await api.getCharacter(charId);
+        state.characterId = charId;
+      }
+    }
 
     enterGameScreen(session, character);
 
-    // Mostra messaggio di ripresa
-    import('./chat.js').then(({ appendSystemMessage }) => {
+    if (isMulti) {
+      const pid = playerId || state.myPlayerId;
+
+      // Sincronizza floor state attuale prima di aprire lo stream
+      const floor = await api.getFloor(sessionId).catch(() => null);
+
+      // Replay della history (messaggi passati)
+      await loadHistory(sessionId, true);
+
+      appendSystemMessage('— Riconnessione —');
+
+      // Apre SSE con floor già sincronizzato
+      const playerName = character?.meta?.name || pid;
+      initMultiplayer(sessionId, pid, floor, playerName);
+      openPersistentStream(sessionId);
+    } else {
+      // Replay history anche per single-player
+      await loadHistory(sessionId, false);
       appendSystemMessage('— Sessione ripresa —');
-    });
+    }
   } catch (err) {
     alert(`Errore ripresa sessione: ${err.message}`);
   }
@@ -206,30 +261,37 @@ function enterGameScreen(session, character) {
   gameScreen.style.display = 'flex';
   gameScreen.classList.add('active');
 
-  // Titolo
-  document.getElementById('game-title').textContent =
-    `${character.meta.name} · ${session.adventure_id}`;
+  const title = character
+    ? `${character.meta.name} · ${session.adventure_id}`
+    : session.adventure_id;
+  document.getElementById('game-title').textContent = title;
 
-  // Scheda personaggio
-  initCharacterPanel(character);
+  if (character) initCharacterPanel(character);
 
-  // Imposta sessione nella chat
   setSession(session.id);
 
-  // Salva il modello in state e applicalo alla select (se già popolata)
-  state.currentModel = session.model || config.defaultModel;
-  const sel = document.getElementById('model-select');
-  if (sel.options.length > 0) sel.value = state.currentModel;
+  // Modello: mostra provider/modello corrente dalla sessione
+  const llmCfg = session.llmConfig;
+  if (llmCfg) {
+    document.getElementById('model-select').title =
+      `${llmCfg.provider} · ${llmCfg.creativeModel} / ${llmCfg.fastModel}`;
+  }
   updateModeToggle(session.mode || 'creative');
+
+  // Per multiplayer: nascondi selettore modello (gestito dall'admin)
+  if (state.isMultiplayer) {
+    document.getElementById('model-select').style.display = 'none';
+    document.getElementById('mode-toggle').style.display = 'none';
+  }
 }
 
 // ── Handlers input ────────────────────────────────────────────────────────────
 
 function setupInputHandlers() {
   const inputText = document.getElementById('input-text');
-  const sendBtn = document.getElementById('send-btn');
+  const declareBtn = document.getElementById('declare-btn');
 
-  sendBtn.addEventListener('click', () => sendInput());
+  declareBtn.addEventListener('click', () => sendInput());
 
   inputText.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -238,7 +300,6 @@ function setupInputHandlers() {
     }
   });
 
-  // Auto-resize textarea
   inputText.addEventListener('input', () => {
     inputText.style.height = 'auto';
     inputText.style.height = Math.min(inputText.scrollHeight, 120) + 'px';
@@ -258,23 +319,22 @@ function sendInput() {
 
 async function setupModelSelector() {
   const select = document.getElementById('model-select');
+
+  // Carica modelli Ollama di default per single-player
   try {
-    const models = await api.listModels();
-    // Popola senza triggerare change: rimuovi listener, aggiorna, poi ri-applica
+    const models = await api.listModels('ollama');
     select.innerHTML = models
       .map((m) => `<option value="${m.name}">${m.name}</option>`)
       .join('');
-    // Ri-applica il modello della sessione corrente (se già in gioco)
-    if (state.currentModel) select.value = state.currentModel;
   } catch (_) {
     select.innerHTML = '<option value="">Ollama non disponibile</option>';
   }
 
   select.addEventListener('change', async () => {
-    if (!state.sessionId) return;
-    state.currentModel = select.value;
+    if (!state.sessionId || state.isMultiplayer) return;
+    const model = select.value;
     try {
-      await api.updateModel(state.sessionId, select.value);
+      await api.updateLlm(state.sessionId, { creativeModel: model, fastModel: model });
     } catch (_) {}
   });
 
@@ -282,7 +342,7 @@ async function setupModelSelector() {
     if (!state.sessionId) return;
     const session = await api.getSession(state.sessionId);
     const newMode = session.mode === 'creative' ? 'fast' : 'creative';
-    await api.updateModel(state.sessionId, session.model, newMode);
+    await api.updateLlm(state.sessionId, null, newMode);
     updateModeToggle(newMode);
   });
 }
@@ -291,5 +351,5 @@ function updateModeToggle(mode) {
   const btn = document.getElementById('mode-toggle');
   btn.textContent = mode === 'creative' ? 'Creativo' : 'Veloce';
   btn.className = mode === 'creative' ? 'creative' : '';
-  btn.id = 'mode-toggle'; // mantieni id
+  btn.id = 'mode-toggle';
 }

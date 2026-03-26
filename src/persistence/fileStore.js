@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, renameSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, renameSync, unlinkSync, appendFileSync } from 'fs';
 import { dirname } from 'path';
 
 /**
@@ -44,4 +44,35 @@ export function listDirs(dirPath) {
  */
 export function ensureDir(dirPath) {
   mkdirSync(dirPath, { recursive: true });
+}
+
+/**
+ * Legge un file di testo. Ritorna defaultValue se non esiste.
+ */
+export function readText(filePath, defaultValue = '') {
+  if (!existsSync(filePath)) return defaultValue;
+  return readFileSync(filePath, 'utf8');
+}
+
+/**
+ * Scrive un file di testo (sovrascrive).
+ */
+export function writeText(filePath, content) {
+  mkdirSync(dirname(filePath), { recursive: true });
+  writeFileSync(filePath, content, 'utf8');
+}
+
+/**
+ * Appende una riga a un file di testo.
+ */
+export function appendText(filePath, line) {
+  mkdirSync(dirname(filePath), { recursive: true });
+  appendFileSync(filePath, line + '\n', 'utf8');
+}
+
+/**
+ * Cancella un file se esiste.
+ */
+export function deleteFile(filePath) {
+  if (existsSync(filePath)) unlinkSync(filePath);
 }

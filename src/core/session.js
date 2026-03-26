@@ -1,22 +1,49 @@
 import { v4 as uuidv4 } from 'uuid';
-import { config } from '../config.js';
+import { defaultLlmConfig } from '../gm/llmClient.js';
 
 /**
  * Crea una nuova sessione di gioco.
+ *
+ * @param {object} params
+ * @param {string} params.adventureId
+ * @param {string} [params.characterId]       - singolo giocatore (retrocompat single-player)
+ * @param {object} [params.llmConfig]         - { provider, creativeModel, fastModel }
+ * @param {Array}  [params.players]           - [{ player_id, character_id }] per multiplayer
+ * @param {number} [params.durationMinutes]   - durata sessione in minuti (null = illimitata)
  */
-export function createSession({ adventureId, characterId, model }) {
+export function createSession({ adventureId, characterId, llmConfig, players, durationMinutes }) {
   const id = uuidv4();
+
+  // Normalizza players: supporta sia single-player (characterId) che multi-player (players[])
+  const resolvedPlayers = players?.length
+    ? players.map((p) => ({ player_id: p.player_id, character_id: p.character_id, connected: false }))
+    : [{ player_id: null, character_id: characterId, connected: false }];
+
+  // Floor iniziale: lobby per multi-player (attende connessioni), open per single
+  const isMultiplayer = resolvedPlayers.length > 1;
+  const initialFloor = {
+    state: isMultiplayer ? 'lobby' : 'open',
+    player_id: null,
+    hand_queue: [],
+    dice_player_id: null,
+  };
+
   return {
     id,
     created_at: new Date().toISOString(),
     last_active: new Date().toISOString(),
-    status: 'active', // active | paused | ended
+    status: isMultiplayer ? 'waiting' : 'active', // waiting = in lobby
     adventure_id: adventureId,
-    model: model || config.defaultModel,
+    llmConfig: llmConfig || defaultLlmConfig(),
     mode: 'creative', // creative (2 fasi) | fast (1 fase)
     language: 'it',
-    players: [{ character_id: characterId, connection_id: null }],
+    players: resolvedPlayers,
+    floor: initialFloor,
+    session_duration_minutes: durationMinutes || null,
+    session_start_time: isMultiplayer ? null : new Date().toISOString(),
     turn_count: 0,
+    pending_directives: [],
+    continue_votes: [],  // voti "continuiamo?" dopo disconnessione
   };
 }
 
@@ -26,12 +53,12 @@ export function createSession({ adventureId, characterId, model }) {
 export function emptyWorldState(adventureId) {
   return {
     adventure_id: adventureId,
-    npcs: {},
-    locations: {},
+    cycle_phase: 'impostare_scena',
+    current_scene_index: 0,   // 0 = nessuna scena ancora aperta
     flags: {},
     active_threats: [],
     clues_found: [],
-    current_scene: null,
+    npcs: {},
     notes: [],
   };
 }
@@ -51,13 +78,23 @@ export function gmHistoryEntry(turn, narrative, directives = [], reasoning = nul
 }
 
 /**
- * Entry history per un'azione giocatore.
+ * Entry history per un'azione o commento del giocatore.
+ *
+ * @param {number} turn
+ * @param {string} content
+ * @param {object} [opts]
+ * @param {string} [opts.playerId]    - UUID del giocatore (null per single-player)
+ * @param {string} [opts.playerName]  - nome del personaggio
+ * @param {string} [opts.type]        - 'action' | 'comment' | 'interrupt' (default: 'action')
  */
-export function playerHistoryEntry(turn, content) {
+export function playerHistoryEntry(turn, content, { playerId, playerName, type } = {}) {
   return {
     turn,
     timestamp: new Date().toISOString(),
     role: 'player',
+    player_id: playerId || null,
+    player_name: playerName || null,
+    message_type: type || 'action',
     content,
   };
 }

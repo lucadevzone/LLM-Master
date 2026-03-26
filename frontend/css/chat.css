@@ -132,6 +132,36 @@
   font-weight: bold;
 }
 
+/* ── Sussurro privato del Custode ── */
+.msg-whisper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 85%;
+}
+
+.msg-whisper .bubble {
+  background: #1a1a2e;
+  border: 1px solid #4a3a6a;
+  border-left: 3px solid #9060c0;
+  border-radius: 0 var(--radius) var(--radius) var(--radius);
+  padding: 0.9rem 1rem;
+  color: #d0b8f0;
+  line-height: 1.65;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  font-style: italic;
+  box-shadow: 0 0 12px rgba(120, 60, 180, 0.25);
+}
+
+.msg-whisper .label {
+  font-size: 0.65rem;
+  color: #9060c0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 0.25rem;
+}
+
 /* ── Evento SAN ── */
 .event-san {
   align-self: center;
@@ -219,6 +249,15 @@
 .dice-btn .skill-name { font-weight: bold; }
 .dice-btn .skill-value { color: var(--text-muted); font-size: 0.75rem; }
 
+/* Animazione dado in action area */
+.dice-rolling-anim {
+  padding: 0.5rem 1rem;
+  font-size: 1.1rem;
+  color: var(--accent);
+  font-weight: bold;
+  letter-spacing: 2px;
+}
+
 /* Pulsanti azione suggerita */
 .action-btn {
   padding: 0.4rem 0.75rem;
@@ -238,17 +277,18 @@
   background: #ede8dc;
 }
 
-/* ── Area input ── */
+/* ── Area input unificata ── */
 #input-area {
   display: flex;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.65rem 1rem;
   background: var(--bg-surface);
   border-top: 1px solid var(--border);
 }
 
 #input-text {
-  flex: 1;
+  width: 100%;
   background: var(--bg-input);
   border: 1px solid var(--border);
   color: var(--text);
@@ -262,6 +302,7 @@
   overflow-y: auto;
   line-height: 1.4;
   transition: border-color var(--transition);
+  box-sizing: border-box;
 }
 
 #input-text:focus {
@@ -274,22 +315,53 @@
   cursor: not-allowed;
 }
 
-#send-btn {
-  padding: 0.6rem 1rem;
+#input-buttons {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+#declare-btn {
+  padding: 0.5rem 1rem;
   background: var(--bg-card);
   border: 1px solid var(--accent-light);
   color: var(--accent);
   font-family: var(--font-main);
   font-size: 0.85rem;
+  font-weight: 600;
   cursor: pointer;
   border-radius: var(--radius);
   transition: background var(--transition);
   white-space: nowrap;
-  align-self: flex-end;
 }
 
-#send-btn:hover { background: #e0d0b8; }
-#send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+#declare-btn:hover { background: #e0d0b8; }
+#declare-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+#interrupt-btn, #hand-btn, #pass-turn-btn {
+  padding: 0.45rem 0.75rem;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: var(--font-main);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  transition: border-color var(--transition), color var(--transition);
+  white-space: nowrap;
+}
+
+#interrupt-btn:hover { border-color: var(--danger-light); color: var(--danger-light); }
+#hand-btn:hover { border-color: var(--accent-light); color: var(--accent); }
+#pass-turn-btn:hover { border-color: var(--system-color); color: var(--system-color); }
+#pass-turn-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+#dice-action-btn {
+  border-color: var(--accent-light);
+  color: var(--accent);
+  animation: pulse-border 2s ease-in-out infinite;
+}
+#dice-action-btn:hover { background: #f4ede0; }
 
 /* ── Pannello scheda personaggio (destra) ── */
 #character-panel {
@@ -299,10 +371,132 @@
   background: var(--bg-surface);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Tab navigazione ── */
+#char-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.char-tab {
+  flex: 1;
+  padding: 0.5rem 0.25rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  font-family: var(--font-main);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.char-tab:hover { color: var(--text-muted); }
+.char-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── Tab content ── */
+.tab-content {
+  flex: 1;
   overflow-y: auto;
   padding: 1rem;
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
 }
+
+/* ── Diario ── */
+.diary-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+#diary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+#player-notes {
+  width: 100%;
+  min-height: 100px;
+  max-height: 220px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.5rem 0.65rem;
+  font-family: var(--font-main);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  border-radius: var(--radius);
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+#player-notes:focus { outline: none; border-color: var(--accent-light); }
+
+.diary-item {
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.diary-clue {
+  background: #f4ede0;
+  border-left: 3px solid var(--accent);
+  color: var(--accent);
+}
+
+.diary-item-gained {
+  background: #eaf4ea;
+  border-left: 3px solid var(--success-light);
+  color: var(--success-light);
+}
+
+/* ── Sessione tab ── */
+#session-players-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.session-player-item {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius);
+  background: var(--bg-input);
+  border: 1px solid var(--border-light);
+}
+
+.session-player-item.me {
+  color: var(--player-color);
+  border-color: var(--player-color);
+}
+
+.btn-close-session {
+  margin-top: auto;
+  padding: 0.5rem 0.75rem;
+  background: none;
+  border: 1px solid var(--danger-light);
+  color: var(--danger-light);
+  font-family: var(--font-main);
+  font-size: 0.8rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.btn-close-session:hover { background: #fdf0f0; }
 
 .char-section {
   display: flex;
@@ -408,7 +602,52 @@
   padding: 0.2rem 0;
 }
 
-/* Flash SAN */
+/* ── Floor indicator (multiplayer) ── */
+#floor-indicator {
+  padding: 0.35rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-light);
+  letter-spacing: 0.03em;
+}
+
+/* ── Messaggi commento/interruzione ── */
+.msg-comment {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  align-self: center;
+  max-width: 75%;
+  opacity: 0.85;
+}
+
+.msg-comment .label {
+  font-size: 0.62rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 0.2rem;
+}
+
+.msg-comment .bubble {
+  background: var(--bg-surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.8rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+.msg-interrupt .bubble {
+  border-color: var(--danger-light);
+  color: var(--danger-light);
+  background: #fdf0f0;
+}
+
+/* ── Flash SAN */
 @keyframes san-flash {
   0% { background: rgba(106, 42, 138, 0.15); }
   100% { background: var(--bg-surface); }

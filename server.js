@@ -87,7 +87,8 @@ app.use((err, req, res, next) => {
 
 app.listen(config.port, () => {
   console.log(`\n🎲 LLM-Master avviato su http://localhost:${config.port}`);
-  console.log(`   Modello creativo: ${config.defaultModel}`);
-  console.log(`   Modello veloce:   ${config.fastModel}`);
+  console.log(`   Provider default: ${config.defaultProvider}`);
+  console.log(`   Modello creativo: ${config.defaultCreativeModel}`);
+  console.log(`   Modello veloce:   ${config.defaultFastModel}`);
   console.log(`   Dati in:          ${config.dataDir}\n`);
 });

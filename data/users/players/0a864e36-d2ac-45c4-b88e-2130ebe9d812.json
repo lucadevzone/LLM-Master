@@ -1,0 +1,11 @@
+{
+  "id": "0a864e36-d2ac-45c4-b88e-2130ebe9d812",
+  "name": "Emilio",
+  "email": "lsabatucci+emilio@gmail.com",
+  "role": "player",
+  "inviteCode": null,
+  "inviteUsed": true,
+  "passwordHash": "b69deb7cd083633b0fca24c1d812c74ba5fe027f1dbf65cbec0815615d3b6389cc26ed2eedb53c90a63b1d4b7b68950e7051c0a419920efa62abee865f6c3f78",
+  "salt": "f81883f9c7d9e5781fcdb52462f013b3",
+  "created_at": "2026-03-26T11:24:18.325Z"
+}

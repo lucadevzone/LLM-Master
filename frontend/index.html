@@ -59,20 +59,53 @@
       <div id="chat-panel">
         <div id="messages"></div>
         <div id="status-bar"><span id="status-text"></span></div>
+
+        <!-- Indicatore floor (solo multiplayer) -->
+        <div id="floor-indicator" style="display:none"></div>
+
         <div id="action-area"></div>
+
+        <!-- Area input unificata -->
         <div id="input-area">
           <textarea
             id="input-text"
-            placeholder="Cosa fai? (Invio per inviare, Shift+Invio per andare a capo)"
+            placeholder="Cosa fai?"
             rows="1"
           ></textarea>
-          <button id="send-btn">Invia</button>
+          <div id="input-buttons">
+            <button id="declare-btn">Dichiara</button>
+            <button id="interrupt-btn" style="display:none" title="Intervieni senza occupare il turno">Fuori Turno</button>
+            <button id="hand-btn" style="display:none" title="Chiedi la parola">🙋 Parola</button>
+            <button id="dice-action-btn" style="display:none" title="Esegui la prova richiesta">⬡ Prova</button>
+            <button id="pass-turn-btn" style="display:none" title="Rilascia il turno senza agire">Passa turno</button>
+          </div>
         </div>
       </div>
 
-      <!-- Pannello scheda personaggio -->
+      <!-- Pannello scheda personaggio con tab -->
       <div id="character-panel">
-        <div class="empty-state" style="padding-top: 2rem">Nessun personaggio</div>
+        <div id="char-tabs">
+          <button class="char-tab active" data-tab="scheda">Scheda</button>
+          <button class="char-tab" data-tab="diario">Diario</button>
+          <button class="char-tab" data-tab="sessione">Sessione</button>
+        </div>
+        <div id="tab-scheda" class="tab-content">
+          <div class="empty-state" style="padding-top: 2rem">Nessun personaggio</div>
+        </div>
+        <div id="tab-diario" class="tab-content" style="display:none">
+          <div class="diary-section">
+            <div class="char-section-title">Diario di sessione</div>
+            <div id="diary-list"><div class="empty-state">Nessun evento registrato.</div></div>
+          </div>
+          <div class="diary-section">
+            <div class="char-section-title">Note personali</div>
+            <textarea id="player-notes" placeholder="Scrivi qui le tue note…"></textarea>
+          </div>
+        </div>
+        <div id="tab-sessione" class="tab-content" style="display:none">
+          <div id="session-players-list"></div>
+          <button id="close-session-btn" class="btn-close-session" style="display:none">⚠ Proponi di chiudere la sessione</button>
+        </div>
       </div>
 
     </div>
@@ -142,6 +175,22 @@
       </div>
 
     </form>
+  </div>
+</div>
+
+<!-- ══ MODALE VOTO DISCONNESSIONE ═══════════════════════════════════════════ -->
+<div id="vote-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:500; align-items:center; justify-content:center;">
+  <div style="background:var(--bg-surface,#1e1e2e); border:1px solid var(--border,#444); border-radius:10px; padding:2rem; max-width:420px; width:90%; text-align:center;">
+    <p id="vote-message" style="margin-bottom:1.5rem; font-size:1rem; color:var(--text,#eee);"></p>
+    <div id="vote-tally" style="font-size:.85rem; color:var(--text-muted,#aaa); margin-bottom:1.25rem;"></div>
+    <div style="display:flex; gap:1rem; justify-content:center;">
+      <button id="vote-continue-btn" style="padding:.6rem 1.4rem; background:var(--accent,#7c3aed); color:#fff; border:none; border-radius:6px; font-size:.95rem; font-weight:700; cursor:pointer;">
+        Continuiamo
+      </button>
+      <button id="vote-stop-btn" style="padding:.6rem 1.4rem; background:none; border:1px solid var(--border,#444); color:var(--text-muted,#aaa); border-radius:6px; font-size:.95rem; cursor:pointer;">
+        Chiudiamo qui
+      </button>
+    </div>
   </div>
 </div>
 

@@ -1,0 +1,31 @@
+FATTO - gestione della connessione nella room e sincronizzazione con i client dei giocatori. Centralizzato nel server: endpoint GET /api/sessions/:id/connected-players; il client fa query al server ogni volta che si apre il tab "Sessione". Gli eventi SSE player_connected/player_disconnected aggiornano la lista in background. Il nome viene mostrato come <nome_pg> (Tu) per se stessi; per gli altri manca ancora il nome_giocatore tra parentesi (da aggiungere quando il sistema di autenticazione espone il nome del giocatore).
+
+FATTO - small changes in the UI
+FATTO - Cambia il bottone "Interrompi" in "Fuori Turno"
+FATTO - Nella TextArea metterei solo il suggerimento "Cosa fai?"
+FATTO - Accanto a raise_hand metterei un altro button che si attiva quando il PG deve fare una prova: label "⬡ NomeSkill (d100)", appare solo quando il GM richiede un tiro, scompare dopo il click
+FATTO - Nella scheda Diario metterei due text area: "Diario di sessione" (non editabile, popolato da eventi) e "Note personali" (editabile, salvato in localStorage per sessione)
+FATTO - In Sessione rinominiamo "chiudi sessione" in "proponi di chiudere la sessione"
+
+FATTO - riorganizzazione dei file e delle informazioni
+FATTO - Quando l'admin crea una nuova stanza, il sistema crea una cartella data/rooms/{id}/ con room.json, diary.txt vuoto e sottocartella npcs/. Migrazione automatica dei room file in formato vecchio (flat .json) alla prima lettura.
+FATTO - Il primo file generato è diary.txt (vuoto). API: GET/POST /api/rooms/:id/diary per leggere e appendere voci.
+FATTO - Le schede PG ora includono i campi personal_diary (array, auto-popolato) e player_notes (stringa, editabile). Il campo player_notes è salvato in localStorage lato client e sarà sincronizzato con la scheda nella sessione successiva.
+FATTO - Le schede PNG sono strutturate con name, role, description, stats, events[] e knowledge[]. API completa: GET/POST /api/rooms/:id/npcs, PATCH /:npcId, POST /:npcId/event, POST /:npcId/knowledge. La creazione automatica durante la narrazione (quando il GM introduce un PNG) è da implementare nel responseParser.
+
+
+FATTO - durante la sessione il custode ha un "ciclo".
+Quando tutti i giocatori sono collegati
+FATTO - se è la prima sessione in assoluto (avvio dell'avventura) si parte con "Presentare ambientazione, PG e eventuali Antefatti" per poi entrare nel ciclo del custode.
+FATTO - se invece non è la prima sessione, il custode "Fa una breve sintesi degli eventi principali e delle ultime giocate" per poi entrare nel ciclo del custode
+FATTO - Ciclo del custode: impostare la scena --> coinvolgere i PG --> reagire alle dichiarazioni.
+
+FATTO - In "impostare la scena": regole in custode/impostare_scena.md, direttive NEW_SCENE e UPDATE_SCENE per gestire le scene (salvate in sessions/{id}/scenes/NNN.json). La scena corrente viene iniettata nel system prompt.
+FATTO - Sussurro privato: direttiva WHISPER { character_name, message } — il messaggio arriva solo al giocatore destinatario via SSE sendTo, con stile grafico distinto (sfondo scuro, bordo viola, corsivo).
+
+FATTO - In "coinvolgere i PG": regole in custode/coinvolgere_pg.md. Direttive ASSIGN_TURN (assegna floor a un PG per nome) e OPEN_FLOOR (parola libera). Il GM decide quale dei due usare.
+
+FATTO - In "reagire alle dichiarazioni": regole in custode/reagire_dichiarazioni.md. Fase attivata automaticamente dal server quando un giocatore prende il floor. Direttive UPDATE_SCENE, SET_CYCLE_PHASE per tornare al ciclo.
+FATTO - Timeout proattivo: se i giocatori non agiscono per GM_PROACTIVE_TIMEOUT_MS (default 5 min), il GM interviene autonomamente con un messaggio di stimolo narrativo.
+
+

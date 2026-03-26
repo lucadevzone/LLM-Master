@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createCharacter } from '../core/character.js';
 import { rollCharacteristics, derivedStats, OCCUPATIONS, BASE_SKILLS } from '../core/cocRules.js';
 import { readJson, writeJson, ensureDir } from '../persistence/fileStore.js';
-import { paths } from '../persistence/paths.js';
+import { paths, registerCharacterFile } from '../persistence/paths.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
@@ -44,6 +44,7 @@ router.get('/:id', (req, res) => {
 // POST /api/characters — crea nuovo personaggio
 // Accetta sia il formato piatto { name, occupation, characteristics, backstory }
 // che il formato strutturato { meta: { name, occupation }, characteristics, skill_allocations, backstory }
+// Se viene passato room_id, il file viene scritto dentro la cartella della stanza.
 router.post('/', (req, res) => {
   const body = req.body;
 
@@ -52,6 +53,7 @@ router.post('/', (req, res) => {
   const characteristics = body.characteristics;
   const skill_allocations = body.skill_allocations || {};
   const backstory = body.backstory || '';
+  const roomId = body.room_id || null;
 
   if (!meta?.name || !characteristics) {
     return res.status(400).json({ error: 'name/meta.name e characteristics sono obbligatori' });
@@ -64,7 +66,6 @@ router.post('/', (req, res) => {
     }
   }
 
-  ensureDir(paths.characters());
   const id = uuidv4();
   const character = createCharacter({
     id,
@@ -74,7 +75,15 @@ router.post('/', (req, res) => {
     backstory,
   });
 
-  writeJson(paths.characterFile(id), character);
+  if (roomId) {
+    const filePath = paths.roomCharacterFile(roomId, id);
+    writeJson(filePath, character);
+    registerCharacterFile(id, filePath);
+  } else {
+    ensureDir(paths.characters());
+    writeJson(paths.characterFile(id), character);
+  }
+
   res.status(201).json(character);
 });
 

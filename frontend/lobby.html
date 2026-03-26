@@ -338,6 +338,7 @@
 let currentRoom = null;
 let rolledStats = null;
 let occupations = [];
+let myUserId = null;
 
 // ── Utility ────────────────────────────────────────────────────────────────────
 async function api(path, opts = {}) {
@@ -363,6 +364,7 @@ function badgeHtml(status) {
   try {
     const me = await api('/api/auth/me');
     if (me.role !== 'player') { window.location.href = '/login'; return; }
+    myUserId = me.id;
     document.getElementById('player-name-display').textContent = me.name || me.email;
   } catch {
     window.location.href = '/login';
@@ -415,13 +417,13 @@ async function enterRoom(roomId, status) {
   try {
     const result = await api(`/api/rooms/${roomId}/enter`, { method: 'POST' });
 
-    if (!result.needs_character) {
-      // Sessione già avviata: vai direttamente al gioco
-      window.location.href = `/?session=${result.session_id}`;
+    if (!result.needs_character && result.session_id) {
+      // Sessione già avviata e personaggio registrato: vai al gioco
+      window.location.href = `/?session=${result.session_id}&player=${myUserId}`;
       return;
     }
 
-    // Primo accesso: crea personaggio
+    // Primo accesso (o personaggio non ancora registrato): crea personaggio
     currentRoom = roomId;
     await openCharacterCreation();
   } catch (e) {
@@ -525,7 +527,7 @@ document.getElementById('btn-start-game').addEventListener('click', async () => 
   btn.textContent = 'Avvio...';
 
   try {
-    // 1. Crea personaggio
+    // 1. Crea personaggio (room_id fa sì che il file venga scritto dentro la cartella della stanza)
     const charRes = await api('/api/characters', {
       method: 'POST',
       body: JSON.stringify({
@@ -533,41 +535,54 @@ document.getElementById('btn-start-game').addEventListener('click', async () => 
         occupation: document.getElementById('char-occupation').value,
         characteristics: rolledStats.characteristics,
         backstory: document.getElementById('char-backstory').value.trim(),
+        room_id: currentRoom,
       }),
     });
 
-    // 2. Trova adventure_id dalla room (lo passiamo nel body)
-    // Per crearlo, la room stessa ha adventure_id — recuperiamo dalla lista già caricata
-    const rooms = await api('/api/rooms');
-    const room = rooms.find(r => r.id === currentRoom);
-    if (!room) throw new Error('Stanza non trovata');
-
-    // 3. Crea sessione
-    const sessRes = await api('/api/sessions', {
+    // 2. Registra personaggio nella room
+    // Se tutti i player hanno registrato, la sessione viene creata automaticamente
+    const regRes = await api(`/api/rooms/${currentRoom}/register-character`, {
       method: 'POST',
-      body: JSON.stringify({
-        adventure_id: room.adventure_id,
-        character_id: charRes.id,
-      }),
+      body: JSON.stringify({ character_id: charRes.id }),
     });
 
-    // 4. Collega sessione e personaggio alla room
-    await api(`/api/rooms/${currentRoom}/start`, {
-      method: 'POST',
-      body: JSON.stringify({
-        character_id: charRes.id,
-        session_id: sessRes.id,
-      }),
-    });
+    if (regRes.session_id) {
+      // Sessione pronta: vai al gioco
+      window.location.href = `/?session=${regRes.session_id}&player=${myUserId}`;
+      return;
+    }
 
-    // 5. Vai al gioco
-    window.location.href = `/?session=${sessRes.id}`;
+    // Sessione non ancora pronta: aspetta che gli altri player si registrino
+    document.getElementById('overlay-char').classList.remove('open');
+    showWaitingState(currentRoom);
   } catch (e) {
     err.textContent = 'Errore: ' + e.message;
     btn.disabled = false;
     btn.textContent = 'Inizia l\'avventura';
   }
 });
+
+// ── Waiting state (multi-player) ───────────────────────────────────────────────
+function showWaitingState(roomId) {
+  const list = document.getElementById('room-list');
+  list.innerHTML = `
+    <div class="empty-state">
+      <p>Personaggio registrato!</p>
+      <p style="font-size:.8rem">In attesa che gli altri giocatori si registrino…</p>
+      <p id="waiting-dots" style="font-size:1.5rem;margin-top:.5rem">⏳</p>
+    </div>`;
+
+  // Polling finché la room non ha una sessione
+  const interval = setInterval(async () => {
+    try {
+      const room = await api(`/api/rooms/${roomId}`);
+      if (room.session_id) {
+        clearInterval(interval);
+        window.location.href = `/?session=${room.session_id}&player=${myUserId}`;
+      }
+    } catch (_) {}
+  }, 3000);
+}
 </script>
 </body>
 </html>

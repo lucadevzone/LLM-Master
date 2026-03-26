@@ -30,7 +30,8 @@ export function addClueToPanel(clue) {
 // ── Rendering ──────────────────────────────────────────────────────────────────
 
 function renderFull(ch) {
-  const panel = document.getElementById('character-panel');
+  const panel = document.getElementById('tab-scheda');
+  if (!panel) return;
   panel.innerHTML = `
     <div class="char-section">
       <div class="char-section-title">Personaggio</div>

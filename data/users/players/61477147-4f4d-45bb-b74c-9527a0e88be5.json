@@ -1,0 +1,11 @@
+{
+  "id": "61477147-4f4d-45bb-b74c-9527a0e88be5",
+  "name": "Peppe",
+  "email": "lsabatucci+peppe@gmail.com",
+  "role": "player",
+  "inviteCode": null,
+  "inviteUsed": true,
+  "passwordHash": "317f076a6c4c24c2068ed6c9cce412e8fbe046a593b6d12253e73ef5f1e58fbc6af1cf8b30de75beeabf25bf78e57eac01711cfa79b580a5fd1a127607a91244",
+  "salt": "182563de131957a6cf0301115fc31873",
+  "created_at": "2026-03-26T11:25:42.382Z"
+}

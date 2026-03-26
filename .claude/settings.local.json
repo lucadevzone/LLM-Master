@@ -4,7 +4,10 @@
       "Bash(npm install:*)",
       "Bash(export PATH=\"$PATH:/usr/local/bin:/opt/homebrew/bin\")",
       "Bash(source ~/.zshrc)",
-      "Bash(source ~/.bashrc)"
+      "Bash(source ~/.bashrc)",
+      "Bash(find /Users/luca/Documents/devel/LLM-Master -type d -not -path */node_modules* -not -path */.git*)",
+      "Bash(wc:*)",
+      "Bash(node:*)"
     ]
   }
 }

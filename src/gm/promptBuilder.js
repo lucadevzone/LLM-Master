@@ -1,11 +1,32 @@
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
 import { characterSummaryForPrompt } from '../core/character.js';
+import { readJson } from '../persistence/fileStore.js';
+import { paths } from '../persistence/paths.js';
+
+// ── Regole del ciclo del custode (lette da file .md) ─────────────────────────
+
+function loadCustodeRules(phase) {
+  const fileMap = {
+    impostare_scena: 'impostare_scena.md',
+    coinvolgere_pg: 'coinvolgere_pg.md',
+    reagire_dichiarazioni: 'reagire_dichiarazioni.md',
+  };
+  const filename = fileMap[phase];
+  if (!filename) return null;
+  const filePath = join(process.cwd(), 'custode', filename);
+  if (!existsSync(filePath)) return null;
+  return readFileSync(filePath, 'utf8').trim();
+}
 
 // ─── PROMPT FISSO: Identità e istruzioni output ─────────────────────────────
 
 const GM_IDENTITY = `Sei il Custode (Game Master) di una partita di Call of Cthulhu 7a Edizione.
 Conduci la partita esclusivamente in italiano. Sei il narratore, l'arbitro e la voce del mondo.
-Non sei un avversario del giocatore: il tuo ruolo è creare tensione, atmosfera e conseguenze coerenti.
-Non rompere mai il quarto muro. Non spiegare le tue scelte meccaniche al giocatore.`;
+Non sei un avversario dei giocatori: il tuo ruolo è creare tensione, atmosfera e conseguenze coerenti.
+Non rompere mai il quarto muro. Non spiegare le tue scelte meccaniche ai giocatori.
+In sessioni con più giocatori, gestisci la parola come un master vero: indirizza la narrazione al personaggio attivo,
+ma considera sempre il gruppo — le reazioni degli altri PG, i loro commenti, le interruzioni — nel costruire la scena.`;
 
 const OUTPUT_RULES = `
 ## REGOLE DI OUTPUT (OBBLIGATORIE)
@@ -21,9 +42,20 @@ Struttura obbligatoria:
 }
 
 ### Tipi di direttiva disponibili:
-- SET_SCENE: { "type": "SET_SCENE", "scene": "<descrizione breve scena attuale>" }
+
+**Ciclo del custode:**
+- NEW_SCENE: { "type": "NEW_SCENE", "title": "<titolo breve>", "time": "<tempo narrativo>", "location": "<luogo>", "characters_present": ["<nome PG/PNG>"], "threats": ["<minaccia>"], "clues": ["<indizio>"] }
+- UPDATE_SCENE: { "type": "UPDATE_SCENE", "event": "<evento accaduto>", "add_threat": "<minaccia>", "remove_threat": "<minaccia risolta>", "add_clue": "<indizio>", "add_character": "<nome>", "remove_character": "<nome>", "time": "<nuovo tempo>", "location": "<nuova location>" }
+- SET_CYCLE_PHASE: { "type": "SET_CYCLE_PHASE", "phase": "<impostare_scena|coinvolgere_pg|reagire_dichiarazioni>" }
+- ASSIGN_TURN: { "type": "ASSIGN_TURN", "character_name": "<nome esatto del PG a cui assegni la parola>" }
+- OPEN_FLOOR: { "type": "OPEN_FLOOR" }
+- WHISPER: { "type": "WHISPER", "character_name": "<nome esatto del PG destinatario>", "message": "<testo visibile solo a quel giocatore>" }
+
+**PNG:**
 - NPC_MOOD: { "type": "NPC_MOOD", "npc": "<nome>", "disposition": "<neutral|friendly|suspicious|hostile|alarmed|afraid>" }
 - NPC_REVEAL: { "type": "NPC_REVEAL", "npc": "<nome>", "info": "<cosa ha rivelato>" }
+
+**Narrativa e meccaniche:**
 - CLUE_FOUND: { "type": "CLUE_FOUND", "clue": "<nome indizio>", "description": "<descrizione>" }
 - FLAG_SET: { "type": "FLAG_SET", "flag": "<nome flag>", "value": <true|false|"stringa"> }
 - REQUEST_SKILL_ROLL: { "type": "REQUEST_SKILL_ROLL", "skill": "<nome skill>", "difficulty": "<normal|hard|extreme>", "reason": "<perché>", "on_success": "<narrativa successo>", "on_failure": "<narrativa fallimento>", "on_extreme": "<narrativa estremo>" }
@@ -117,23 +149,48 @@ Struttura:
  * Costruisce il system prompt completo del GM per la fase di narrazione.
  *
  * @param {Object} params
- * @param {Object} params.adventure    - avventura caricata
- * @param {Object} params.session      - sessione corrente
- * @param {Object} params.character    - scheda personaggio
- * @param {Object} params.worldState   - stato del mondo
- * @param {Object} params.context      - { summary, recentHistory }
- * @param {Object} params.reasoning    - output della fase 1 (può essere null)
+ * @param {Object} params.adventure        - avventura caricata
+ * @param {Object} params.session          - sessione corrente
+ * @param {Object} params.character        - scheda del personaggio attivo (retrocompat single-player)
+ * @param {Object[]} [params.characters]   - tutti i personaggi del gruppo (multi-player)
+ * @param {Object} params.worldState       - stato del mondo
+ * @param {Object} params.context          - { summary, recentHistory }
+ * @param {Object} params.reasoning        - output della fase 1 (può essere null)
+ * @param {Object} [params.floorContext]   - { actingPlayerName, handQueue: [name,...] }
+ * @param {string} [params.sessionId]     - id sessione (per leggere la scena corrente)
  */
-export function buildGMSystemPrompt({ adventure, session, character, worldState, context, reasoning }) {
+export function buildGMSystemPrompt({ adventure, session, character, characters, worldState, context, reasoning, floorContext, sessionId }) {
+  // In multi-player usa characters[], altrimenti fallback su character singolo
+  const party = characters?.length ? characters : (character ? [character] : []);
+  const isMultiplayer = party.length > 1;
+
+  // Leggi la scena corrente dal file
+  const currentScene = sessionId && worldState.current_scene_index > 0
+    ? readJson(paths.sceneFile(sessionId, worldState.current_scene_index))
+    : null;
+
+  // Regole della fase corrente del ciclo
+  const cycleRules = loadCustodeRules(worldState.cycle_phase);
+
   const parts = [
     GM_IDENTITY,
     OUTPUT_RULES,
     COC_MECHANICS,
     GM_PRINCIPLES,
     buildAdventureSection(adventure),
-    buildWorldStateSection(worldState),
-    characterSummaryForPrompt(character),
+    buildWorldStateSection(worldState, currentScene),
+    isMultiplayer
+      ? buildPartySection(party, floorContext)
+      : characterSummaryForPrompt(party[0] || character),
   ];
+
+  if (floorContext && isMultiplayer) {
+    parts.push(buildFloorContextSection(floorContext));
+  }
+
+  if (cycleRules) {
+    parts.push(buildCycleRulesSection(worldState.cycle_phase, cycleRules));
+  }
 
   if (reasoning) {
     parts.push(buildReasoningSection(reasoning));
@@ -162,9 +219,16 @@ export function buildConversationMessages({ context, playerAction, diceResult })
     if (entry.role === 'gm') {
       messages.push({ role: 'assistant', content: entry.content });
     } else if (entry.role === 'player') {
-      messages.push({ role: 'user', content: entry.content });
+      // In multi-player prefissa con nome e tipo (commento/interruzione)
+      let content = entry.content;
+      if (entry.player_name) {
+        const typeLabel = entry.message_type === 'comment' ? '[commento]'
+          : entry.message_type === 'interrupt' ? '[interruzione]'
+          : '';
+        content = `${entry.player_name}${typeLabel ? ' ' + typeLabel : ''}: ${content}`;
+      }
+      messages.push({ role: 'user', content });
     } else if (entry.role === 'system') {
-      // Risultati dadi: iniettati come sistema
       messages.push({ role: 'system', content: entry.content });
     }
   }
@@ -192,27 +256,45 @@ Era: ${adventure.era} | Tono: ${adventure.tone} | Giocatori: ${adventure.players
 ${adventure.content}`;
 }
 
-function buildWorldStateSection(worldState) {
+function buildWorldStateSection(worldState, currentScene) {
   const lines = ['## STATO ATTUALE DEL MONDO'];
 
-  if (worldState.current_scene) {
-    lines.push(`**Scena corrente**: ${worldState.current_scene}`);
+  // Fase del ciclo
+  const phaseLabel = {
+    impostare_scena: 'Impostare la scena',
+    coinvolgere_pg: 'Coinvolgere i PG',
+    reagire_dichiarazioni: 'Reagire alle dichiarazioni',
+  }[worldState.cycle_phase] || worldState.cycle_phase;
+  lines.push(`**Fase ciclo**: ${phaseLabel}`);
+
+  // Scena corrente (dal file)
+  if (currentScene) {
+    lines.push(`\n**Scena ${currentScene.index}: ${currentScene.title}**`);
+    if (currentScene.time) lines.push(`- Tempo: ${currentScene.time}`);
+    if (currentScene.location) lines.push(`- Luogo: ${currentScene.location}`);
+    if (currentScene.characters_present?.length) lines.push(`- Presenti: ${currentScene.characters_present.join(', ')}`);
+    if (currentScene.threats?.length) lines.push(`- Minacce: ${currentScene.threats.join(', ')}`);
+    if (currentScene.clues?.length) lines.push(`- Indizi disponibili: ${currentScene.clues.join(', ')}`);
+    if (currentScene.events?.length) {
+      lines.push('- Ultimi eventi nella scena:');
+      for (const e of currentScene.events.slice(-5)) lines.push(`  • ${e.text}`);
+    }
+  } else {
+    lines.push('\n*(Nessuna scena aperta — usa NEW_SCENE per aprire la prima scena)*');
   }
 
-  // PNG
+  // PNG globali
   const npcs = Object.entries(worldState.npcs || {});
   if (npcs.length) {
-    lines.push('\n**PNG e stato attuale**:');
+    lines.push('\n**PNG noti**:');
     for (const [id, npc] of npcs) {
       const status = npc.alive === false ? ' (MORTO)' : '';
-      lines.push(`- ${npc.name || id}${status}: disposizione=${npc.disposition || '?'}, luogo=${npc.location || '?'}`);
-      if (npc.knowledge_revealed?.length) {
-        lines.push(`  Ha rivelato: ${npc.knowledge_revealed.join(', ')}`);
-      }
+      lines.push(`- ${npc.name || id}${status}: disposizione=${npc.disposition || '?'}`);
+      if (npc.knowledge_revealed?.length) lines.push(`  Ha rivelato: ${npc.knowledge_revealed.join(', ')}`);
     }
   }
 
-  // Indizi trovati
+  // Indizi trovati globalmente
   if (worldState.clues_found?.length) {
     lines.push(`\n**Indizi scoperti**: ${worldState.clues_found.join(', ')}`);
   }
@@ -221,9 +303,7 @@ function buildWorldStateSection(worldState) {
   const flags = Object.entries(worldState.flags || {}).filter(([, v]) => v);
   if (flags.length) {
     lines.push('\n**Situazione corrente**:');
-    for (const [k, v] of flags) {
-      lines.push(`- ${k}: ${v}`);
-    }
+    for (const [k, v] of flags) lines.push(`- ${k}: ${v}`);
   }
 
   // Note del GM
@@ -233,6 +313,15 @@ function buildWorldStateSection(worldState) {
   }
 
   return lines.join('\n');
+}
+
+function buildCycleRulesSection(phase, rules) {
+  const phaseLabel = {
+    impostare_scena: 'IMPOSTARE LA SCENA',
+    coinvolgere_pg: 'COINVOLGERE I PG',
+    reagire_dichiarazioni: 'REAGIRE ALLE DICHIARAZIONI',
+  }[phase] || phase.toUpperCase();
+  return `## REGOLE DI FASE: ${phaseLabel}\n\n${rules}`;
 }
 
 function buildReasoningSection(reasoning) {
@@ -247,6 +336,73 @@ Ritmo: ${reasoning.pacing}
 Atmosfera: ${reasoning.atmosphere_note}
 
 Conseguenze immediate: ${reasoning.consequences?.immediate || 'nessuna'}`;
+}
+
+// ─── Sezioni multi-player ─────────────────────────────────────────────────────
+
+/**
+ * Sezione che descrive il gruppo al completo.
+ * Il personaggio attivo è marcato con ★.
+ * @param {Object[]} characters - tutti i personaggi
+ * @param {Object} [floorContext] - { actingPlayerName }
+ */
+function buildPartySection(characters, floorContext) {
+  const lines = ['## GRUPPO DEI PERSONAGGI'];
+
+  for (const char of characters) {
+    const { meta, derived } = char;
+    const isActing = floorContext?.actingPlayerName === meta.name;
+    const marker = isActing ? '★ ' : '  ';
+    lines.push(
+      `${marker}**${meta.name}** (${meta.occupation}) — ` +
+      `PS ${derived.hp_current}/${derived.hp_max} | SAN ${derived.sanity_current}/${derived.sanity_max}`
+    );
+  }
+
+  if (floorContext?.actingPlayerName) {
+    lines.push(`\n★ = personaggio che ha la parola in questo turno: **${floorContext.actingPlayerName}**`);
+  }
+
+  // Scheda completa solo per il personaggio attivo (risparmia token)
+  const acting = floorContext?.actingPlayerName
+    ? characters.find((c) => c.meta.name === floorContext.actingPlayerName)
+    : characters[0];
+
+  if (acting) {
+    lines.push('');
+    lines.push(characterSummaryForPrompt(acting));
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Contesto del floor per il GM: chi vuole parlare, commenti pendenti.
+ * @param {Object} floorContext
+ * @param {string} floorContext.actingPlayerName
+ * @param {string[]} [floorContext.handQueue]   - nomi di chi ha alzato la mano
+ * @param {string[]} [floorContext.pendingComments] - commenti/interruzioni arrivati
+ */
+function buildFloorContextSection(floorContext) {
+  const lines = ['## GESTIONE PAROLA (FLOOR)'];
+
+  if (floorContext.actingPlayerName) {
+    lines.push(`**Ha la parola**: ${floorContext.actingPlayerName}`);
+  }
+
+  if (floorContext.handQueue?.length) {
+    lines.push(`**Vuole intervenire**: ${floorContext.handQueue.join(', ')} — considerali nella tua narrazione quando appropriato.`);
+  }
+
+  if (floorContext.pendingComments?.length) {
+    lines.push('\n**Commenti/interruzioni ricevute durante questa azione**:');
+    for (const c of floorContext.pendingComments) {
+      lines.push(`- ${c.player_name}: "${c.content}"`);
+    }
+    lines.push('Puoi incorporarli narrativamente se sono coerenti con la scena.');
+  }
+
+  return lines.join('\n');
 }
 
 // ─── Prompt per riassunto contesto ────────────────────────────────────────────
