@@ -1,0 +1,26 @@
+{
+  "index": 1,
+  "title": "La Galleria Dumont",
+  "time": "Sera del 14 ottobre 1923, dopo il tramonto",
+  "location": "Galleria Dumont, Parigi",
+  "characters_present": [
+    "Emilio",
+    "Luca",
+    "Peppe"
+  ],
+  "threats": [
+    "Nessuna minaccia immediata",
+    "Gli uomini misteriosi"
+  ],
+  "clues": [
+    "La galleria è piena di visitatori curiosi. La mostra sembra essere molto popolare."
+  ],
+  "events": [
+    {
+      "timestamp": "2026-03-27T08:03:08.620Z",
+      "text": "Emilio ha reagito aggressivamente"
+    }
+  ],
+  "started_at": "2026-03-27T07:38:06.594Z",
+  "ended_at": null
+}
