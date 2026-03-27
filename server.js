@@ -71,6 +71,8 @@ app.use('/api', adminRouter);
 app.get('/', (req, res) => {
   if (!req.user) return res.redirect('/login');
   if (req.user.role === 'admin') return res.redirect('/admin');
+  // Player con sessione attiva: serve la schermata di gioco
+  if (req.query.session) return res.sendFile(join(__dirname, 'frontend', 'index.html'));
   return res.redirect('/lobby');
 });
 
