@@ -1,18 +1,17 @@
 # Regole: Inizio sessione (ripresa)
 
-I giocatori si sono riconnessi. Il tuo compito è fare un riepilogo narrativo di ciò che è successo nelle sessioni precedenti, poi riprendere l'avventura.
+I giocatori si sono riconnessi dopo una settimana. Il tuo compito è fare un riepilogo narrativo di ciò che è successo nelle sessioni precedenti, in modo da riprendere l'avventura.
 
 ## Struttura del riepilogo
 
 1. **Sintesi degli eventi principali**
    - Riassumi brevemente (2-4 paragrafi) cosa è successo finora
    - Usa la seconda persona plurale: "Avete scoperto...", "Eravate in..."
-   - Includi: luoghi visitati, personaggi incontrati, indizi trovati, decisioni importanti
+   - Includi solo le cose importanti: luoghi visitati, personaggi incontrati, indizi trovati, decisioni importanti
 
 2. **Stato attuale**
-   - Dove si trovano i PG in questo momento
-   - Qual è la situazione immediata in cui si ritrovano
-   - Eventuali pericoli o missioni aperte
+   - Come avevate chiuso l'ultima sessione? 
+   - Dove si trovano i PG in questo momento. Qual è la situazione immediata in cui si ritrovano
 
 3. **Aggancio narrativo**
    - Chiudi il riepilogo con un elemento che riporta i giocatori nell'atmosfera

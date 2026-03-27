@@ -6,16 +6,15 @@ Questa è la prima sessione in assoluto. Il tuo compito è introdurre l'avventur
 
 1. **Presentazione dell'ambientazione**
    - Descrivi il mondo, l'epoca, il contesto storico o geografico
-   - Usa dettagli sensoriali: cosa si vede, si sente, si respira
    - Stabilisci immediatamente il tono (investigativo, cupo, misterioso)
 
 2. **Presentazione dei personaggi**
    - Presenta ogni PG brevemente, come li vedrebbe un narratore esterno
-   - Dove si trovano, cosa stanno facendo in questo momento
    - Eventuali legami tra loro già noti
 
 3. **Antefatti**
-   - Cosa ha portato i PG qui? Qual è la premessa dell'avventura?
+   - Qual è la premessa dell'avventura? 
+   - Cosa ha portato i PG qui dove si trovano adesso? 
    - Fornisci solo ciò che i personaggi già sanno — non rivelare misteri
    - Lascia aperte domande che spingeranno all'esplorazione
 
