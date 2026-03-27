@@ -18,7 +18,8 @@ import {
   subscribe, unsubscribe, broadcast, sendTo,
   getConnectedPlayers, isAllConnected,
 } from '../gm/sseRegistry.js';
-import { resetGMTimer, clearGMTimer, setProactiveCallback } from '../gm/timeoutRegistry.js';
+import { resetGMTimer, clearGMTimer, startGMTimerIfIdle, setProactiveCallback } from '../gm/timeoutRegistry.js';
+import { recordTurn } from '../gm/turnMonitor.js';
 import { config } from '../config.js';
 import {
   getFloor, takeFloor, releaseFloor,
@@ -49,7 +50,8 @@ async function proactiveGMTurn(sessionId) {
   const connected = getConnectedPlayers(sessionId);
   if (!connected.length) return;
 
-  const worldState = readJson(paths.worldStateFile(sessionId));
+  const proactiveRoomId = getRoomIdForSession(sessionId);
+  const worldState = readJson(proactiveRoomId ? paths.worldStateFile(proactiveRoomId) : null);
   const phaseLabel = {
     impostare_scena: 'impostare la scena',
     coinvolgere_pg: 'coinvolgere i PG',
@@ -68,6 +70,7 @@ async function proactiveGMTurn(sessionId) {
   session.last_active = new Date().toISOString();
   writeJson(paths.sessionFile(sessionId), session);
 
+  broadcast(sessionId, 'gm_hint', { message: 'Vi vedo un po\' fermi… proviamo a far andare avanti le cose.' });
   broadcast(sessionId, 'status', { message: 'Il Custode interviene...' });
 
   runGMTurn(sessionId, null).catch((err) => {
@@ -125,6 +128,7 @@ function labelForOutcome(outcome) {
  */
 async function runGMTurn(sessionId, actingPlayerId) {
   const session = readJson(paths.sessionFile(sessionId));
+  const roomId = getRoomIdForSession(sessionId);
   const llmConfig = session.llmConfig;
   const client = createClient(llmConfig);
   const isMulti = isMultiplayerSession(session);
@@ -141,7 +145,21 @@ async function runGMTurn(sessionId, actingPlayerId) {
     : session.players[0];
   const character = readJson(paths.characterFile(actingPlayerEntry.character_id));
 
-  const worldState = readJson(paths.worldStateFile(sessionId));
+  let worldState = readJson(paths.worldStateFile(roomId));
+
+  // Inizializza struttura gruppi se non presente e ci sono più giocatori
+  if (isMulti && worldState && !worldState.groups) {
+    worldState.groups = [{
+      id: 'main',
+      character_names: allCharacters.map((c) => c.meta?.name).filter(Boolean),
+      members: session.players.map((p) => p.player_id).filter(Boolean),
+      sub_location: null,
+      last_active_at: new Date().toISOString(),
+    }];
+    worldState.active_group_id = 'main';
+    writeJson(paths.worldStateFile(roomId), worldState);
+  }
+
   const adventure = findAndLoadAdventure(session.adventure_id);
   const context = buildContext(sessionId);
 
@@ -197,7 +215,7 @@ async function runGMTurn(sessionId, actingPlayerId) {
     adventure, session, character,
     characters: isMulti ? allCharacters : null,
     worldState, context, reasoning, floorContext,
-    sessionId,
+    sessionId, roomId,
   });
   const conversationMessages = buildConversationMessages({ context });
 
@@ -263,12 +281,14 @@ async function runGMTurn(sessionId, actingPlayerId) {
   // ── Parse e direttive ────────────────────────────────────────────────────────
   const parsed = parseGMResponse(fullResponse);
 
-  // PASS: il GM sceglie di non intervenire, lascia i giocatori parlare tra loro
+  // PASS: il GM sceglie di non intervenire, lascia i giocatori parlare tra loro.
+  // Il timer viene avviato solo se non è già in corso: così durante una conversazione
+  // intra-PG il countdown non riparte a ogni messaggio e il GM interviene comunque.
   if (parsed.directives.some((d) => d.type === 'PASS')) {
     releaseFloor(sessionId);
     broadcast(sessionId, 'floor_change', { state: 'open', hand_queue: getFloor(readJson(paths.sessionFile(sessionId))).hand_queue });
     broadcast(sessionId, 'done', { turn: session.turn_count });
-    resetGMTimer(sessionId, config.gmProactiveTimeoutMs);
+    startGMTimerIfIdle(sessionId, config.gmProactiveTimeoutMs);
     return;
   }
 
@@ -280,9 +300,68 @@ async function runGMTurn(sessionId, actingPlayerId) {
   const { character: updatedChar, worldState: updatedWS, events } =
     applyDirectives(nonDiceDirectives, character, worldState, sessionId);
 
+  // Registra turno nel monitor coinvolgimento
+  if (isMulti && actingPlayerId) {
+    recordTurn(updatedWS, character?.meta?.name);
+  }
+
+  // Aggiorna last_active_at del gruppo attivo
+  if (isMulti && actingPlayerId && updatedWS.groups && updatedWS.active_group_id) {
+    const activeGrp = updatedWS.groups.find((g) => g.id === updatedWS.active_group_id);
+    if (activeGrp) activeGrp.last_active_at = new Date().toISOString();
+  }
+
+  // Gestione direttive gruppo: SPLIT_GROUP
+  const splitGroupDir = immediate.find((d) => d.type === 'SPLIT_GROUP');
+  if (splitGroupDir && isMulti && updatedWS.groups) {
+    const playerNames = splitGroupDir.player_names || [];
+    const freshSession = readJson(paths.sessionFile(sessionId));
+    const toMove = [];
+    for (const name of playerNames) {
+      const entry = freshSession.players.find((p) => {
+        const ch = readJson(paths.characterFile(p.character_id));
+        return ch?.meta?.name === name;
+      });
+      if (entry) toMove.push({ playerId: entry.player_id, charName: name });
+    }
+    if (toMove.length) {
+      const activeGrp = updatedWS.groups.find((g) => g.id === updatedWS.active_group_id);
+      if (activeGrp) {
+        activeGrp.members = activeGrp.members.filter((m) => !toMove.some((t) => t.playerId === m));
+        activeGrp.character_names = activeGrp.character_names.filter((n) => !playerNames.includes(n));
+      }
+      // Genera ID gruppo leggibile: split-1, split-2, ...
+      const splitCount = updatedWS.groups.filter((g) => g.id.startsWith('split-')).length;
+      const newGroupId = `split-${splitCount + 1}`;
+      updatedWS.groups.push({
+        id: newGroupId,
+        members: toMove.map((t) => t.playerId),
+        character_names: toMove.map((t) => t.charName),
+        sub_location: splitGroupDir.location || null,
+        last_active_at: null,
+      });
+    }
+  }
+
+  // Gestione direttive gruppo: MERGE_GROUP
+  const mergeGroupDir = immediate.find((d) => d.type === 'MERGE_GROUP');
+  if (mergeGroupDir && updatedWS.groups) {
+    const groupToMerge = updatedWS.groups.find((g) => g.id === mergeGroupDir.group_id);
+    const activeGrp = updatedWS.groups.find((g) => g.id === updatedWS.active_group_id);
+    if (groupToMerge && activeGrp && groupToMerge.id !== activeGrp.id) {
+      activeGrp.members = [...new Set([...activeGrp.members, ...groupToMerge.members])];
+      activeGrp.character_names = [...new Set([...activeGrp.character_names, ...groupToMerge.character_names])];
+      updatedWS.groups = updatedWS.groups.filter((g) => g.id !== mergeGroupDir.group_id);
+      if (mergeGroupDir.transition) {
+        broadcast(sessionId, 'gm_transition', { message: mergeGroupDir.transition });
+      }
+      broadcast(sessionId, 'group_switch', { active_group_id: updatedWS.active_group_id, groups: updatedWS.groups });
+    }
+  }
+
   // Salva stato aggiornato
   writeJson(paths.characterFile(actingPlayerEntry.character_id), updatedChar);
-  writeJson(paths.worldStateFile(sessionId), updatedWS);
+  writeJson(paths.worldStateFile(roomId), updatedWS);
 
   // Salva turno GM in history
   const gmEntry = gmHistoryEntry(session.turn_count, parsed.narrative, parsed.directives, reasoning);
@@ -386,27 +465,55 @@ async function runGMTurn(sessionId, actingPlayerId) {
 
   // Aggiorna floor in base alle direttive del GM (solo se non in attesa di dado)
   if (!diceRequests.length) {
+    // SWITCH_GROUP: cambia il gruppo attivo, resetta il floor per il nuovo gruppo
+    const switchGroupDir = immediate.find((d) => d.type === 'SWITCH_GROUP');
+    if (switchGroupDir && updatedWS.groups) {
+      const targetGroup = updatedWS.groups.find((g) => g.id === switchGroupDir.group_id);
+      if (targetGroup) {
+        updatedWS.active_group_id = switchGroupDir.group_id;
+        writeJson(paths.worldStateFile(roomId), updatedWS);
+        if (switchGroupDir.transition) {
+          broadcast(sessionId, 'gm_transition', { message: switchGroupDir.transition });
+        }
+        broadcast(sessionId, 'group_switch', { active_group_id: updatedWS.active_group_id, groups: updatedWS.groups });
+        releaseFloor(sessionId);
+        broadcast(sessionId, 'floor_change', { state: 'open', hand_queue: [] });
+        resetGMTimer(sessionId, config.gmProactiveTimeoutMs);
+        return;
+      }
+    }
+
     const assignTurn = immediate.find((d) => d.type === 'ASSIGN_TURN');
 
     if (isMulti && assignTurn?.character_name) {
-      // Trova il player_id dal nome personaggio
-      const freshSession = readJson(paths.sessionFile(sessionId));
-      const targetEntry = freshSession.players.find((p) => {
-        const ch = readJson(paths.characterFile(p.character_id));
-        return ch?.meta?.name === assignTurn.character_name;
-      });
-      if (targetEntry) {
-        takeFloor(sessionId, targetEntry.player_id);
-        broadcast(sessionId, 'floor_change', {
-          state: 'player',
-          player_id: targetEntry.player_id,
-          player_name: assignTurn.character_name,
-          hand_queue: getFloor(freshSession).hand_queue,
-        });
-      } else {
-        // Nome non trovato: apri il floor comunque
+      // Verifica che il personaggio sia nel gruppo attivo
+      const latestWS = readJson(paths.worldStateFile(roomId));
+      const activeGrp = latestWS.groups?.find((g) => g.id === latestWS.active_group_id);
+      const isInActiveGroup = !activeGrp || activeGrp.character_names.includes(assignTurn.character_name);
+
+      if (!isInActiveGroup) {
+        // Personaggio non nel gruppo attivo: apri il floor comunque
         releaseFloor(sessionId);
         broadcast(sessionId, 'floor_change', { state: 'open', hand_queue: getFloor(readJson(paths.sessionFile(sessionId))).hand_queue });
+      } else {
+        // Trova il player_id dal nome personaggio
+        const freshSession = readJson(paths.sessionFile(sessionId));
+        const targetEntry = freshSession.players.find((p) => {
+          const ch = readJson(paths.characterFile(p.character_id));
+          return ch?.meta?.name === assignTurn.character_name;
+        });
+        if (targetEntry) {
+          takeFloor(sessionId, targetEntry.player_id);
+          broadcast(sessionId, 'floor_change', {
+            state: 'player',
+            player_id: targetEntry.player_id,
+            player_name: assignTurn.character_name,
+            hand_queue: getFloor(freshSession).hand_queue,
+          });
+        } else {
+          releaseFloor(sessionId);
+          broadcast(sessionId, 'floor_change', { state: 'open', hand_queue: getFloor(readJson(paths.sessionFile(sessionId))).hand_queue });
+        }
       }
     } else {
       // OPEN_FLOOR esplicita o default
@@ -459,10 +566,11 @@ async function triggerSessionStart(sessionId) {
   session.turn_count = (session.turn_count || 0) + 1;
 
   // Imposta la fase corretta nel world state prima di chiamare il GM
-  const wsStart = readJson(paths.worldStateFile(sessionId));
-  if (wsStart) {
+  const startRoomId = getRoomIdForSession(sessionId);
+  const wsStart = startRoomId ? readJson(paths.worldStateFile(startRoomId)) : null;
+  if (wsStart && startRoomId) {
     wsStart.cycle_phase = isFirstTime ? 'avvio' : 'inizio_sessione';
-    writeJson(paths.worldStateFile(sessionId), wsStart);
+    writeJson(paths.worldStateFile(startRoomId), wsStart);
   }
 
   let startMessage;
@@ -614,6 +722,18 @@ router.post('/:id/player-turn', async (req, res) => {
     const floor = getFloor(session);
     if (floor.state === 'lobby') return res.status(400).json({ error: 'La sessione non è ancora iniziata' });
 
+    // Controlla che il giocatore sia nel gruppo attivo
+    const ptRoomId = getRoomIdForSession(req.params.id);
+    if (ptRoomId) {
+      const ws = readJson(paths.worldStateFile(ptRoomId));
+      if (ws?.groups?.length > 1 && ws.active_group_id) {
+        const activeGrp = ws.groups.find((g) => g.id === ws.active_group_id);
+        if (activeGrp && !activeGrp.members.includes(req.user.id)) {
+          return res.status(409).json({ error: 'Non è il turno del tuo gruppo', waiting_group: true });
+        }
+      }
+    }
+
     const alreadyAssigned = floor.state === 'player' && floor.player_id === req.user.id;
 
     if (!alreadyAssigned) {
@@ -648,10 +768,13 @@ router.post('/:id/player-turn', async (req, res) => {
     writeJson(paths.sessionFile(req.params.id), session);
 
     // Transizione automatica a fase "reagire_dichiarazioni" quando il giocatore agisce
-    const wsOnAction = readJson(paths.worldStateFile(req.params.id));
-    if (wsOnAction && wsOnAction.cycle_phase !== 'reagire_dichiarazioni') {
-      wsOnAction.cycle_phase = 'reagire_dichiarazioni';
-      writeJson(paths.worldStateFile(req.params.id), wsOnAction);
+    const actionRoomId = getRoomIdForSession(req.params.id);
+    if (actionRoomId) {
+      const wsOnAction = readJson(paths.worldStateFile(actionRoomId));
+      if (wsOnAction && wsOnAction.cycle_phase !== 'reagire_dichiarazioni') {
+        wsOnAction.cycle_phase = 'reagire_dichiarazioni';
+        writeJson(paths.worldStateFile(actionRoomId), wsOnAction);
+      }
     }
 
     // Broadcast: il giocatore ha preso la parola
@@ -917,11 +1040,12 @@ router.post('/:id/dice-result', async (req, res) => {
 
   // Applica direttive pending
   if (session.pending_directives?.length) {
-    const worldState = readJson(paths.worldStateFile(sessionId));
+    const diceRoomId = getRoomIdForSession(sessionId);
+    const worldState = diceRoomId ? readJson(paths.worldStateFile(diceRoomId)) : null;
     const { character: updatedChar, worldState: updatedWS } =
       applyDirectives(session.pending_directives, character, worldState, sessionId, diceResult);
     writeJson(paths.characterFile(actingPlayerEntry.character_id), updatedChar);
-    writeJson(paths.worldStateFile(sessionId), updatedWS);
+    if (diceRoomId) writeJson(paths.worldStateFile(diceRoomId), updatedWS);
     const freshSession = readJson(paths.sessionFile(sessionId));
     freshSession.pending_directives = [];
     writeJson(paths.sessionFile(sessionId), freshSession);

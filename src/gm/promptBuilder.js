@@ -1,27 +1,33 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { characterSummaryForPrompt } from '../core/character.js';
-import { readJson } from '../persistence/fileStore.js';
+import { readJson, readText, listFiles } from '../persistence/fileStore.js';
 import { paths } from '../persistence/paths.js';
+import { buildTurnMonitorSection } from './turnMonitor.js';
 
-// ── Regole del ciclo del custode (lette da file .md) ─────────────────────────
+// ── Regole del custode (lette da file .md) ───────────────────────────────────
 
-function loadCustodeRules(phase) {
+function loadCustodeRules(key) {
   const fileMap = {
+    // Fasi del ciclo
     avvio: 'avvio.md',
     inizio_sessione: 'inizio_sessione.md',
     impostare_scena: 'impostare_scena.md',
     coinvolgere_pg: 'coinvolgere_pg.md',
     reagire_dichiarazioni: 'reagire_dichiarazioni.md',
+    // Regole trasversali
+    regole_coc: 'regole_coc.md',
+    principi_regia: 'principi_regia.md',
+    gestire_gruppi: 'gestire_gruppi.md',
   };
-  const filename = fileMap[phase];
+  const filename = fileMap[key];
   if (!filename) return null;
   const filePath = join(process.cwd(), 'custode', filename);
   if (!existsSync(filePath)) return null;
   return readFileSync(filePath, 'utf8').trim();
 }
 
-// ─── PROMPT FISSO: Identità e istruzioni output ─────────────────────────────
+// ─── PROMPT FISSO: Identità ───────────────────────────────────────────────────
 
 const GM_IDENTITY = `Sei il Custode (Game Master) di una partita di Call of Cthulhu 7a Edizione.
 Conduci la partita esclusivamente in italiano. Sei il narratore, l'arbitro e la voce del mondo.
@@ -54,6 +60,11 @@ Struttura obbligatoria:
 - PASS: { "type": "PASS" } — non intervenire: lascia che i giocatori si parlino tra loro. Usa questa direttiva quando la conversazione tra PG è fluente e non richiede il tuo intervento. La narrative deve essere vuota ("").
 - WHISPER: { "type": "WHISPER", "character_name": "<nome esatto del PG destinatario>", "message": "<testo visibile solo a quel giocatore>" }
 
+**Gestione gruppi (usa solo se i giocatori si sono divisi):**
+- SPLIT_GROUP: { "type": "SPLIT_GROUP", "player_names": ["<nome PG>", ...], "location": "<luogo in cui si trovano>" }
+- SWITCH_GROUP: { "type": "SWITCH_GROUP", "group_id": "<id gruppo visibile nel riepilogo>", "transition": "<frase narrativa di transizione, es. Nel frattempo...>" }
+- MERGE_GROUP: { "type": "MERGE_GROUP", "group_id": "<id gruppo da riassorbire nel gruppo attivo>", "transition": "<frase narrativa>" }
+
 **PNG:**
 - NPC_MOOD: { "type": "NPC_MOOD", "npc": "<nome>", "disposition": "<neutral|friendly|suspicious|hostile|alarmed|afraid>" }
 - NPC_REVEAL: { "type": "NPC_REVEAL", "npc": "<nome>", "info": "<cosa ha rivelato>" }
@@ -71,51 +82,6 @@ Struttura obbligatoria:
 - PUSH_AVAILABLE: { "type": "PUSH_AVAILABLE", "skill": "<nome skill>", "risk": "<cosa rischia il personaggio>" }
 - SESSION_END: { "type": "SESSION_END", "outcome": "<vittoria|morte|follia|fuga>" }`;
 
-// ─── PROMPT FISSO: Meccaniche CoC ────────────────────────────────────────────
-
-const COC_MECHANICS = `
-## MECCANICHE CALL OF CTHULHU 7a EDIZIONE
-
-### Tiri di dado (d100)
-Quando il personaggio tenta qualcosa con esito incerto, usa REQUEST_SKILL_ROLL o REQUEST_STAT_ROLL.
-NON risolvere mai tu stesso i tiri: emetti la direttiva e aspetta il risultato dal sistema.
-
-Scala di successo (roll d100, successo se roll ≤ valore):
-- Successo Estremo: roll ≤ valore/5
-- Successo Difficile: roll ≤ valore/2
-- Successo Normale: roll ≤ valore
-- Fallimento: roll > valore
-- Fumble: 96-100 (o 96+ se skill < 50)
-
-### Push (Spingere il tiro)
-Dopo un fallimento, se narrativamente giustificato, usa PUSH_AVAILABLE.
-Il giocatore può ritentare ma a costo: descrivere cosa rischia.
-
-### Sanità
-SANITY_LOSS causa una perdita automatica di SAN nel sistema.
-Usa "loss_on_success" per successo al tiro SAN (minore), "loss_on_failure" per fallimento (maggiore).
-Esempio: visione di un cadavere → loss_on_success: "0", loss_on_failure: "1d4"
-Esempio: rituale blasfemo → loss_on_success: "1", loss_on_failure: "1d6+1"
-
-### Quando richiedere un tiro
-- Azione con esito incerto E conseguenze interessanti in caso di fallimento
-- NON richiedere tiri per azioni banali o automaticamente riuscite
-- NON richiedere tiri multipli per la stessa azione`;
-
-// ─── PRINCIPI DI REGIA ───────────────────────────────────────────────────────
-
-const GM_PRINCIPLES = `
-## PRINCIPI DI REGIA
-1. "Sì, e..." — Le azioni del personaggio hanno sempre conseguenze. Mai "non puoi".
-2. Mostrare, non dire — "Le tue mani tremano" non "Sei spaventato".
-3. I PNG hanno vita propria — Agiscono secondo le loro motivazioni, anche fuori scena.
-4. Ritmo e respiro — Ogni scena ha tensione, climax, risoluzione. Non affrettare.
-5. Coerenza totale — Ricorda tutto. Se il PG ha mentito, il PNG lo ricorda.
-6. Semina per il futuro — Ogni risposta pianta un seme per dopo.
-7. Il mistero prima della risposta — Per CoC: mai tutto chiaro, sempre qualcosa di inesplicabile.
-8. Conseguenze, non punizioni — Il tuo scopo è drammaticamente coerente, non sconfiggere il giocatore.
-9. Proporzione — Un'azione piccola ha effetti piccoli. Non tutto deve essere drammatico.
-10. L'orrore cosmico è incomprensibile — Non rendere mai il Mito accessibile o razionalizzabile.`;
 
 // ─── PROMPT FASE 1: Reasoning ────────────────────────────────────────────────
 
@@ -146,6 +112,87 @@ Struttura:
   "atmosphere_note": "<aggettivo o breve nota sull'atmosfera da mantenere>"
 }`;
 
+// ─── Helper: carica dati contestuali per fase ─────────────────────────────────
+
+function loadRoomDiary(roomId) {
+  if (!roomId) return '';
+  return readText(paths.roomDiaryFile(roomId), '').trim();
+}
+
+/**
+ * Carica le schede PNG presenti nella scena (esclude i PG).
+ * @param {string} roomId
+ * @param {string[]} sceneCharNames - nomi da currentScene.characters_present
+ * @param {string[]} partyNames     - nomi dei PG (da escludere)
+ */
+function loadSceneNPCs(roomId, sceneCharNames, partyNames) {
+  if (!roomId || !sceneCharNames?.length) return [];
+  const partySet = new Set((partyNames || []).map((n) => n.toLowerCase()));
+  const npcNames = sceneCharNames.filter((n) => !partySet.has(n.toLowerCase()));
+  if (!npcNames.length) return [];
+
+  const npcsDir = paths.roomNpcsDir(roomId);
+  const files = listFiles(npcsDir, '.json');
+  const result = [];
+
+  for (const file of files) {
+    const npc = readJson(join(npcsDir, file));
+    if (!npc) continue;
+    if (npcNames.some((n) => n.toLowerCase() === (npc.name || '').toLowerCase())) {
+      result.push(npc);
+    }
+  }
+  return result;
+}
+
+function buildDiarySection(diary) {
+  if (!diary) return null;
+  return `## DIARIO DI STANZA\n${diary}`;
+}
+
+function buildNPCsSection(npcs) {
+  if (!npcs?.length) return null;
+  const lines = ['## SCHEDE PNG PRESENTI NELLA SCENA'];
+  for (const npc of npcs) {
+    lines.push(`\n### ${npc.name}${npc.role ? ` (${npc.role})` : ''}`);
+    if (npc.description) lines.push(npc.description);
+    if (npc.stats && Object.keys(npc.stats).length) {
+      const statLine = Object.entries(npc.stats).map(([k, v]) => `${k}: ${v}`).join(' | ');
+      lines.push(`Stats: ${statLine}`);
+    }
+    if (npc.knowledge?.length) {
+      lines.push(`Sa: ${npc.knowledge.join('; ')}`);
+    }
+    if (npc.events?.length) {
+      lines.push('Ultimi eventi:');
+      for (const e of npc.events.slice(-3)) lines.push(`  • ${e.text || e}`);
+    }
+  }
+  return lines.join('\n');
+}
+
+/**
+ * Sezione con tutti i personaggi del gruppo in dettaglio completo.
+ * Usata in coinvolgere_pg e reagire_dichiarazioni.
+ */
+function buildAllCharactersDetailedSection(characters, floorContext) {
+  const lines = ['## SCHEDE COMPLETE DEL GRUPPO'];
+
+  for (const char of characters) {
+    const { meta } = char;
+    const isActing = floorContext?.actingPlayerName === meta.name;
+    if (isActing) lines.push(`\n★ **${meta.name}** (ha la parola)`);
+    else lines.push(`\n**${meta.name}**`);
+    lines.push(characterSummaryForPrompt(char));
+  }
+
+  if (floorContext?.actingPlayerName) {
+    lines.push(`\n★ = personaggio attivo: **${floorContext.actingPlayerName}**`);
+  }
+
+  return lines.join('\n');
+}
+
 // ─── Assembla il prompt completo per la Fase 2 (Narrazione) ─────────────────
 
 /**
@@ -160,39 +207,90 @@ Struttura:
  * @param {Object} params.context          - { summary, recentHistory }
  * @param {Object} params.reasoning        - output della fase 1 (può essere null)
  * @param {Object} [params.floorContext]   - { actingPlayerName, handQueue: [name,...] }
- * @param {string} [params.sessionId]     - id sessione (per leggere la scena corrente)
+ * @param {string} [params.sessionId]      - id sessione (per leggere la scena corrente)
+ * @param {string} [params.roomId]         - id stanza (per diary e PNG)
  */
-export function buildGMSystemPrompt({ adventure, session, character, characters, worldState, context, reasoning, floorContext, sessionId }) {
+export function buildGMSystemPrompt({ adventure, session, character, characters, worldState, context, reasoning, floorContext, sessionId, roomId }) {
   // In multi-player usa characters[], altrimenti fallback su character singolo
   const party = characters?.length ? characters : (character ? [character] : []);
   const isMultiplayer = party.length > 1;
+  const partyNames = party.map((c) => c.meta?.name).filter(Boolean);
+  const phase = worldState.cycle_phase;
+
+  // Flags per sezioni contestuali per fase
+  const needsWorldState = phase !== 'avvio';
+  const needsDiary = phase === 'inizio_sessione' || phase === 'impostare_scena';
+  const needsNPCs = phase === 'impostare_scena' || phase === 'coinvolgere_pg' || phase === 'reagire_dichiarazioni';
+  const needsAllCharsDetailed = phase === 'avvio' || phase === 'coinvolgere_pg' || phase === 'reagire_dichiarazioni';
 
   // Leggi la scena corrente dal file
-  const currentScene = sessionId && worldState.current_scene_index > 0
+  const currentScene = needsWorldState && sessionId && worldState.current_scene_index > 0
     ? readJson(paths.sceneFile(sessionId, worldState.current_scene_index))
     : null;
 
   // Regole della fase corrente del ciclo
-  const cycleRules = loadCustodeRules(worldState.cycle_phase);
+  const cycleRules = loadCustodeRules(phase);
+
+  const cocRules = loadCustodeRules('regole_coc');
+  const gmPrinciples = loadCustodeRules('principi_regia');
+  const hasMultipleGroups = (worldState.groups?.length ?? 0) > 1;
+  const groupRules = hasMultipleGroups ? loadCustodeRules('gestire_gruppi') : null;
 
   const parts = [
     GM_IDENTITY,
     OUTPUT_RULES,
-    COC_MECHANICS,
-    GM_PRINCIPLES,
-    buildAdventureSection(adventure),
-    buildWorldStateSection(worldState, currentScene),
-    isMultiplayer
-      ? buildPartySection(party, floorContext)
-      : characterSummaryForPrompt(party[0] || character),
   ];
+
+  if (cocRules) parts.push(cocRules);
+  if (gmPrinciples) parts.push(gmPrinciples);
+
+  parts.push(buildAdventureSection(adventure));
+
+  // Stato del mondo (non incluso per avvio)
+  if (needsWorldState) {
+    parts.push(buildWorldStateSection(worldState, currentScene));
+  }
+
+  // Diario (solo per inizio_sessione e impostare_scena)
+  if (needsDiary) {
+    const diary = loadRoomDiary(roomId);
+    if (diary) parts.push(buildDiarySection(diary));
+  }
+
+  // PNG (per impostare_scena, coinvolgere_pg, reagire_dichiarazioni)
+  if (needsNPCs) {
+    const sceneCharNames = currentScene?.characters_present || [];
+    const npcs = loadSceneNPCs(roomId, sceneCharNames, partyNames);
+    if (npcs.length) parts.push(buildNPCsSection(npcs));
+  }
+
+  // Personaggi: dettaglio completo per avvio/coinvolgere_pg/reagire_dichiarazioni
+  if (isMultiplayer) {
+    if (needsAllCharsDetailed) {
+      parts.push(buildAllCharactersDetailedSection(party, floorContext));
+    } else {
+      parts.push(buildPartySection(party, floorContext));
+    }
+  } else {
+    parts.push(characterSummaryForPrompt(party[0] || character));
+  }
 
   if (floorContext && isMultiplayer) {
     parts.push(buildFloorContextSection(floorContext));
   }
 
+  // Monitor coinvolgimento (solo multiplayer, solo quando ci sono dati)
+  if (isMultiplayer) {
+    const turnSection = buildTurnMonitorSection(worldState, partyNames);
+    if (turnSection) parts.push(turnSection);
+  }
+
   if (cycleRules) {
-    parts.push(buildCycleRulesSection(worldState.cycle_phase, cycleRules));
+    parts.push(buildCycleRulesSection(phase, cycleRules));
+  }
+
+  if (groupRules) {
+    parts.push(`## REGOLE: GESTIONE GRUPPI\n\n${groupRules}`);
   }
 
   if (reasoning) {
@@ -269,6 +367,22 @@ function buildWorldStateSection(worldState, currentScene) {
     reagire_dichiarazioni: 'Reagire alle dichiarazioni',
   }[worldState.cycle_phase] || worldState.cycle_phase;
   lines.push(`**Fase ciclo**: ${phaseLabel}`);
+
+  // Gruppi (solo quando il party è diviso)
+  if (worldState.groups?.length > 1) {
+    const now = Date.now();
+    lines.push('\n**Gruppi:**');
+    for (const g of worldState.groups) {
+      const isActive = g.id === worldState.active_group_id;
+      const prefix = isActive ? '→ [ATTIVO]' : '         ';
+      const names = g.character_names?.join(', ') || '?';
+      const loc = g.sub_location || '?';
+      const waitMs = g.last_active_at ? now - new Date(g.last_active_at).getTime() : null;
+      const waitLabel = waitMs !== null ? `${Math.round(waitMs / 60000)} min fa` : 'mai';
+      const warning = !isActive && waitMs !== null && waitMs > 5 * 60 * 1000 ? ' ⚠ in attesa' : '';
+      lines.push(`${prefix} ${g.id} — ${names} — ${loc} (${waitLabel})${warning}`);
+    }
+  }
 
   // Scena corrente (dal file)
   if (currentScene) {

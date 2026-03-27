@@ -177,9 +177,13 @@ export function applyDirectives(directives, character, worldState, sessionId = n
 function deepCloneWorldState(ws) {
   return {
     ...ws,
+    groups: ws.groups
+      ? ws.groups.map((g) => ({ ...g, members: [...(g.members || [])], character_names: [...(g.character_names || [])] }))
+      : undefined,
     npcs: Object.fromEntries(
       Object.entries(ws.npcs || {}).map(([k, v]) => [k, { ...v, knowledge_revealed: [...(v.knowledge_revealed || [])] }])
     ),
+    turn_counts: { ...(ws.turn_counts || {}) },
     flags: { ...ws.flags },
     active_threats: [...(ws.active_threats || [])],
     clues_found: [...(ws.clues_found || [])],

@@ -35,6 +35,10 @@ let handRaised = false;
 let evtSource = null;
 let connectedPlayers = new Map();
 
+// Stato gruppi
+let activeGroupId = null;
+let currentGroups = [];
+
 // ── Tab setup ─────────────────────────────────────────────────────────────────
 
 (function setupCharacterTabs() {
@@ -165,6 +169,7 @@ export function openPersistentStream(sessionId) {
   evtSource.addEventListener('floor_change', (e) => {
     const data = JSON.parse(e.data);
     floorState = data;
+    if (data.state === 'gm') clearActionArea();
     updateFloorUI();
   });
 
@@ -304,6 +309,26 @@ export function openPersistentStream(sessionId) {
   evtSource.addEventListener('game_event', (e) => {
     const event = JSON.parse(e.data);
     handleGameEvent(event);
+  });
+
+  // Suggerimento proattivo (timeout silenzio)
+  evtSource.addEventListener('gm_hint', (e) => {
+    const data = JSON.parse(e.data);
+    appendSystemMessage(data.message);
+  });
+
+  // Transizione narrativa tra gruppi (nel frattempo...)
+  evtSource.addEventListener('gm_transition', (e) => {
+    const data = JSON.parse(e.data);
+    appendGroupTransition(data.message);
+  });
+
+  // Cambio gruppo attivo
+  evtSource.addEventListener('group_switch', (e) => {
+    const data = JSON.parse(e.data);
+    activeGroupId = data.active_group_id;
+    currentGroups = data.groups || [];
+    updateGroupUI();
   });
 
   // Sussurro privato dal Custode
@@ -478,7 +503,11 @@ export async function sendPlayerAction(content, sessionId) {
     try {
       await api.playerTurn(sid, content);
     } catch (err) {
-      appendSystemMessage(`Errore: ${err.message}`, 'failure');
+      if (err.waiting_group) {
+        appendSystemMessage('Il Custode sta seguendo un altro gruppo. Aspetta il tuo turno.', 'failure');
+      } else {
+        appendSystemMessage(`Errore: ${err.message}`, 'failure');
+      }
     }
   } else {
     if (isStreaming) return;
@@ -555,6 +584,33 @@ export function appendWhisperMessage(message) {
   scrollToBottom();
 }
 
+function appendGroupTransition(message) {
+  const div = document.createElement('div');
+  div.className = 'msg-group-transition';
+  div.innerHTML = `<div class="bubble">${escapeHtml(message)}</div>`;
+  messages.appendChild(div);
+  scrollToBottom();
+}
+
+function updateGroupUI() {
+  const banner = document.getElementById('group-banner');
+  if (!banner) return;
+  if (!activeGroupId || currentGroups.length <= 1) {
+    banner.style.display = 'none';
+    return;
+  }
+  const myGroup = currentGroups.find((g) => g.members?.includes(myPlayerId));
+  const activeGroup = currentGroups.find((g) => g.id === activeGroupId);
+  const isMyTurn = myGroup?.id === activeGroupId;
+  banner.style.display = 'block';
+  banner.className = `group-banner ${isMyTurn ? 'active' : 'waiting'}`;
+  const activeNames = activeGroup?.character_names?.join(', ') || '?';
+  const activeLoc = activeGroup?.sub_location || '';
+  banner.textContent = isMyTurn
+    ? `È il turno del tuo gruppo — ${activeLoc || activeNames}`
+    : `Il Custode segue un altro gruppo (${activeNames}${activeLoc ? ' — ' + activeLoc : ''})`;
+}
+
 export function appendSanEvent(event) {
   const div = document.createElement('div');
   div.className = 'event-san';
@@ -602,9 +658,7 @@ function renderSessionTab() {
   }
   list.innerHTML = Array.from(connectedPlayers.entries())
     .map(([id, name]) => {
-      const label = id === myPlayerId
-        ? `${escapeHtml(name)} (Tu)`
-        : `${escapeHtml(name)} (${escapeHtml(id)})`;
+      const label = id === myPlayerId ? `${escapeHtml(name)} (Tu)` : escapeHtml(name);
       return `<div class="session-player-item${id === myPlayerId ? ' me' : ''}">${label}</div>`;
     })
     .join('');

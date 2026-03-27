@@ -79,7 +79,7 @@ export const paths = {
   sessionFile: (id) => join(resolveSessionDir(id), 'session.json'),
   historyFile: (id) => join(resolveSessionDir(id), 'history.json'),
   summaryFile: (id) => join(resolveSessionDir(id), 'summary.json'),
-  worldStateFile: (id) => join(resolveSessionDir(id), 'world_state.json'),
+  worldStateFile: (roomId) => join(config.dataDir, 'rooms', roomId, 'world_state.json'),
 
   // Personaggi (risolti dinamicamente)
   characters: () => join(config.dataDir, 'characters'),

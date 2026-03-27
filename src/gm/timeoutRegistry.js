@@ -31,6 +31,20 @@ export function resetGMTimer(sessionId, timeoutMs) {
 }
 
 /**
+ * Avvia il timer SOLO se non ne esiste già uno attivo per la sessione.
+ * Usato dopo PASS: non resetta il countdown già in corso durante una
+ * conversazione intra-PG, così il GM interviene comunque dopo il primo timeout.
+ *
+ * @param {string} sessionId
+ * @param {number} timeoutMs
+ */
+export function startGMTimerIfIdle(sessionId, timeoutMs) {
+  if (!timers.has(sessionId)) {
+    resetGMTimer(sessionId, timeoutMs);
+  }
+}
+
+/**
  * Cancella il timer per una sessione (es. sessione terminata, tutti disconnessi).
  */
 export function clearGMTimer(sessionId) {

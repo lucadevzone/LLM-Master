@@ -337,7 +337,7 @@ router.post('/:id/register-character', (req, res) => {
     registerSessionDir(session.id, sessionDir);
     ensureDir(sessionDir);
     writeJson(paths.sessionFile(session.id), session);
-    writeJson(paths.worldStateFile(session.id), worldState);
+    writeJson(paths.worldStateFile(req.params.id), worldState);
     writeJson(paths.historyFile(session.id), []);
     newSessionId = session.id;
   }

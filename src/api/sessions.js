@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { createSession, emptyWorldState } from '../core/session.js';
 import { readJson, writeJson, listDirs, ensureDir } from '../persistence/fileStore.js';
-import { paths } from '../persistence/paths.js';
+import { paths, getRoomIdForSession } from '../persistence/paths.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { createClient } from '../gm/llmClient.js';
 import { getConnectedPlayers } from '../gm/sseRegistry.js';
@@ -47,7 +47,7 @@ router.get('/', (req, res) => {
         id: s.id,
         adventure_id: s.adventure_id,
         character_name: character?.meta?.name || '?',
-        current_scene: readJson(paths.worldStateFile(id))?.current_scene || null,
+        current_scene: (() => { const rid = getRoomIdForSession(id); return rid ? readJson(paths.worldStateFile(rid))?.current_scene_index ?? null : null; })(),
         last_active: s.last_active,
         status: s.status,
         turn_count: s.turn_count,
@@ -125,10 +125,8 @@ router.post('/', (req, res) => {
       llmConfig,
       durationMinutes: duration_minutes,
     });
-    const worldState = emptyWorldState(adventure_id);
     ensureDir(paths.session(session.id));
     writeJson(paths.sessionFile(session.id), session);
-    writeJson(paths.worldStateFile(session.id), worldState);
     writeJson(paths.historyFile(session.id), []);
     return res.status(201).json(session);
   }
@@ -138,10 +136,8 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'character_id obbligatorio per sessione single-player' });
   }
   const session = createSession({ adventureId: adventure_id, characterId: character_id, llmConfig });
-  const worldState = emptyWorldState(adventure_id);
   ensureDir(paths.session(session.id));
   writeJson(paths.sessionFile(session.id), session);
-  writeJson(paths.worldStateFile(session.id), worldState);
   writeJson(paths.historyFile(session.id), []);
   res.status(201).json(session);
 });

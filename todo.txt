@@ -1,6 +1,7 @@
-Nella scheda sessione il nome degli altri giocatori è offuscato (esempio Emi (0a864e36-d2ac-45c4-b88e-2130ebe9d812) )
+FATTO - Nella scheda sessione il nome degli altri giocatori è offuscato: rimosso l'UUID dalla label, ora mostra solo il nome del PG.
 
-Il file "world_state.json" dovrebbe essere generale per tutta la partita non per ogni sessione. propongo di spostarlo nella root della stanza. Inoltre ad apertura di avventura non è stato generato nessun file scene. Questa è una cosa importante. La fase "impostare la scena" deve o usare un file scena già esistente (quello corrente) oppure se c'è un cambio scena deve prima creare un nuovo file scene, aggiornare lo stato del mondo, aggiornare diary.txt, e world-state.txt. Anche il "personal_diary" di ogni OG va aggiornato quando succedono cose importanti per la trama.
+FATTO (parziale) - world_state.json spostato nella root della stanza (data/rooms/{id}/world_state.json). Aggiornati paths.js, gm.js, rooms.js, sessions.js, admin.js.
+APERTO - Mancano i file scena all'apertura dell'avventura. La fase "impostare la scena" deve creare/usare scene/NNN.json. Il personal_diary dei PG va aggiornato su eventi importanti.
 
 Un PG si è allontanato esplicitamente dal gruppo. Questo crea una "sottoscena" nella scena attuale. I PG sono separati.. Il custode deve gestire le due cose in parallelo. Con conversazioni differenti. Le informazioni di uno non vanno nella chat degli altri se non sono insieme.
 Questo forse cambierà parecchie scelte fatte fino ad ora. Dobbiamo considerare i "gruppi" di PG come entità. Un gruppo non è bloccato se intanto un altro gruppo sta facendo qualcosa.
@@ -18,12 +19,11 @@ fase "impostare la scena". Input: avventura.md, impostare_scena.md (regole), dia
 fase "coinvolgere i PG" Input: avventura.md, coinvolgere_pg.md (regole), tutte le schede dentro characters, le schede dei PNG coinvolti, world_state.json, il file di scena corrente. Output: niente
 fase "reagire alle dichiarazioni". Input: avventura.md, reagire_dichiarazioni.md (regole), tutte le schede dentro characters, le schede dei PNG coinvolti, world_state.json, il file di scena corrente. Output: aggiornare world_state.json, diary.txt e il file di scena corrente.
 
-Quando il "Il Custode sta parlando…" bisogna eliminare immediatamente i pulsanti per le scelte rapide da tutte le interfacce.
+FATTO - Quando il Custode prende il floor (floor_change → gm) le scelte rapide vengono eliminate immediatamente da tutte le interfacce.
 
+FATTO - Quando scatta il timeout proattivo appare in chat "Vi vedo un po' fermi… proviamo a far andare avanti le cose." prima che il Custode inizi a scrivere.
 
-Quando scatta il timeout e il custode prova a stimolare le cose, metterei in chat una frasetta del tipo  "Vi vedo un pò fermi, proviamo a fare andare avanti le cose..." e poi la LLM pensa e il custode scrive ancora.
-
-Visto che siamo in fase di testing, mi servirebbe un comando rapido per fare pulizia tra i file in data (eliminare tutte le room in corso, ma tenendo tutto il resto). Potrebbe essere un comando di admin. 
+FATTO - Comando admin "🗑 Reset rooms" nella top bar: chiama DELETE /api/admin/reset-rooms, elimina tutte le cartelle in data/rooms/, ricarica la lista stanze.
 
 FATTO - Quando mi collego su http://localhost:3000 mi appare una pagina "vecchia" senza alcun senso. Dovrebbe indirizzarmi a http://localhost:3000/login se non sono loggato, oppure a http://localhost:3000/lobby se sono loggato come giocatore e infine a http://localhost:3000/admin se sono loggato come admin
 

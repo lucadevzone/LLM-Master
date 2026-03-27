@@ -8,7 +8,8 @@
       "Bash(find /Users/luca/Documents/devel/LLM-Master -type d -not -path */node_modules* -not -path */.git*)",
       "Bash(wc:*)",
       "Bash(node:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(find /Users/luca/Documents/devel/LLM-Master/data/rooms -name *.json -path */npcs/*)"
     ]
   }
 }

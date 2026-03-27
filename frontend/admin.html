@@ -184,6 +184,7 @@
   <span class="top-bar-title">LLM · MASTER &mdash; Admin</span>
   <div class="top-bar-right">
     <span id="admin-name"></span>
+    <button class="btn-logout" id="btn-reset-rooms" style="border-color:#c0392b;color:#c0392b" title="Elimina tutte le stanze (testing)">🗑 Reset rooms</button>
     <button class="btn-logout" id="btn-change-password">Password</button>
     <button class="btn-logout" id="btn-logout">Esci</button>
   </div>
@@ -615,6 +616,19 @@ async function archiveRoom(id, name) {
     alert('Errore: ' + e.message);
   }
 }
+
+// ── Reset rooms (testing) ──────────────────────────────────────────────────────
+
+document.getElementById('btn-reset-rooms').addEventListener('click', async () => {
+  if (!confirm('Eliminare TUTTE le stanze? Questa operazione non è reversibile.')) return;
+  try {
+    const result = await api('/api/admin/reset-rooms', { method: 'DELETE' });
+    alert(`Pulizia completata: ${result.deleted} stanze eliminate.`);
+    loadRooms();
+  } catch (e) {
+    alert('Errore: ' + e.message);
+  }
+});
 
 // ── Cambia password ────────────────────────────────────────────────────────────
 

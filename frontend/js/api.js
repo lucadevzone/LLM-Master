@@ -13,7 +13,9 @@ async function req(method, path, body = null) {
   const res = await fetch(BASE + path, opts);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || `HTTP ${res.status}`);
+    const error = new Error(err.error || `HTTP ${res.status}`);
+    if (err.waiting_group) error.waiting_group = true;
+    throw error;
   }
   return res.json();
 }
