@@ -1,3 +1,28 @@
+Nella scheda sessione il nome degli altri giocatori è offuscato (esempio Emi (0a864e36-d2ac-45c4-b88e-2130ebe9d812) )
+
+Il file "world_state.json" dovrebbe essere generale per tutta la partita non per ogni sessione. propongo di spostarlo nella root della stanza. Inoltre ad apertura di avventura non è stato generato nessun file scene. Questa è una cosa importante. La fase "impostare la scena" deve o usare un file scena già esistente (quello corrente) oppure se c'è un cambio scena deve prima creare un nuovo file scene, aggiornare lo stato del mondo, aggiornare diary.txt, e world-state.txt. Anche il "personal_diary" di ogni OG va aggiornato quando succedono cose importanti per la trama.
+
+Un PG si è allontanato esplicitamente dal gruppo. Questo crea una "sottoscena" nella scena attuale. I PG sono separati.. Il custode deve gestire le due cose in parallelo. Con conversazioni differenti. Le informazioni di uno non vanno nella chat degli altri se non sono insieme.
+Questo forse cambierà parecchie scelte fatte fino ad ora. Dobbiamo considerare i "gruppi" di PG come entità. Un gruppo non è bloccato se intanto un altro gruppo sta facendo qualcosa.
+
+ancora il custode non gestisce bene le situazioni di gioco libero in cui i PG parlano tra loro.
+Esempio: TU: ragazzi che facciamo? andiamo alla mostra?
+CUSTODE: La luce dei lampadari dell'Expo illumina la strada, attirando un flusso costante di persone verso l'ingresso della mostra. Sembra una sera come tante altre, ma qualcosa nell'aria fa sentire Emilia e Luca un po' nervosi. Peppe si volta verso gli amici con un sorriso indeciso.
+EMI: si mi piacerebbe vedere nuovi reperti
+CUSTODE: Entrate nella mostra, dove potrete vedere una vasta collezione di reperti antichi, tra cui alcuni oggetti misteriosi e inquietanti.
+
+Dobbiamo chiarire una volta e per tutte l'input e l'output di ogni fase.
+fase "avvio avventura". Input: avventura.md, avvio.md (regole), tutte le schede dentro characters. Output: aggiornare diary.txt
+fase "avvio_sessione". Input: avventura.md, inizio_sessione.md (regole), diary.txt, world_state.json, il file di scena corrente. Output: niente
+fase "impostare la scena". Input: avventura.md, impostare_scena.md (regole), diary.txt, world_state.json, il file di scena corrente, le schede dei PNG coinvolti. Output: aggiornare scena corrente, oppure creare nuova scena e aggiornare world_state.json
+fase "coinvolgere i PG" Input: avventura.md, coinvolgere_pg.md (regole), tutte le schede dentro characters, le schede dei PNG coinvolti, world_state.json, il file di scena corrente. Output: niente
+fase "reagire alle dichiarazioni". Input: avventura.md, reagire_dichiarazioni.md (regole), tutte le schede dentro characters, le schede dei PNG coinvolti, world_state.json, il file di scena corrente. Output: aggiornare world_state.json, diary.txt e il file di scena corrente.
+
+Quando il "Il Custode sta parlando…" bisogna eliminare immediatamente i pulsanti per le scelte rapide da tutte le interfacce.
+
+
+Quando scatta il timeout e il custode prova a stimolare le cose, metterei in chat una frasetta del tipo  "Vi vedo un pò fermi, proviamo a fare andare avanti le cose..." e poi la LLM pensa e il custode scrive ancora.
+
 FATTO - Quando mi collego su http://localhost:3000 mi appare una pagina "vecchia" senza alcun senso. Dovrebbe indirizzarmi a http://localhost:3000/login se non sono loggato, oppure a http://localhost:3000/lobby se sono loggato come giocatore e infine a http://localhost:3000/admin se sono loggato come admin
 
 FATTO - Servirebbe una procedura interna per cambiare la password (aggiunto bottone "Password" + modal in lobby.html e admin.html; endpoint POST /api/auth/change-password)
