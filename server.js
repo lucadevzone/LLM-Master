@@ -67,15 +67,15 @@ app.use('/api/characters', charactersRouter);
 app.use('/api/adventures', adventuresRouter);
 app.use('/api', adminRouter);
 
-// ── Serve frontend statico ────────────────────────────────────────────────────
-app.use(express.static(join(__dirname, 'frontend')));
-
 // ── Root redirect ─────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
   if (!req.user) return res.redirect('/login');
   if (req.user.role === 'admin') return res.redirect('/admin');
   return res.redirect('/lobby');
 });
+
+// ── Serve frontend statico ────────────────────────────────────────────────────
+app.use(express.static(join(__dirname, 'frontend')));
 
 // ── Fallback SPA (solo per il gioco) ─────────────────────────────────────────
 app.get('*', (req, res) => {
