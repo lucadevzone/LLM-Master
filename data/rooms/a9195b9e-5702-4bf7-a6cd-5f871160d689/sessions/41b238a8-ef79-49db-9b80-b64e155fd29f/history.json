@@ -1,0 +1,78 @@
+[
+  {
+    "turn": 1,
+    "timestamp": "2026-03-27T11:06:08.929Z",
+    "role": "player",
+    "player_id": null,
+    "player_name": null,
+    "message_type": "action",
+    "content": "[SISTEMA - INIZIO AVVENTURA]\nAvventura: \"The Fate of Atlantis\".\nGruppo: Emilio, Luca, Peppe.\nSegui le regole di fase \"avvio\": presenta l'ambientazione, i personaggi e gli antefatti. Non aprire ancora la prima scena — quella verrà nella fase successiva."
+  },
+  {
+    "turn": 1,
+    "timestamp": "2026-03-27T11:06:45.232Z",
+    "role": "gm",
+    "content": "La notte del 28 settembre 1936, Parigi è una città in fermento. L'Esposizione Universale sta per inaugurarsi e l'aria è piena di entusiasmo e curiosità. Ma tra le ombre della Belle Époque, qualcosa si muove. Un culto segreto, nascosto da anni, sembra essersi risvegliato. E voi, tre investigatori privati, siete stati chiamati a scoprire cosa sta succedendo.",
+    "directives_applied": [
+      "NEW_SCENE"
+    ],
+    "gm_reasoning": {
+      "player_intent": "Iniziare l'avventura 'The Fate of Atlantis'",
+      "interpretation": "L'inizio dell'avventura, dove presenterò l'ambientazione e i personaggi per stabilire il contesto della storia",
+      "roll_needed": {
+        "required": false,
+        "skill": null,
+        "difficulty": null,
+        "why": "Nessun tiro è richiesto in questo momento"
+      },
+      "npc_reactions": {},
+      "consequences": {
+        "on_success": "La presentazione dell'ambientazione e dei personaggi avrà successo",
+        "on_failure": "Non ci saranno conseguenze negative se non si riesce a presentare l'avventura",
+        "immediate": "L'inizio dell'avventura procederà comunque"
+      },
+      "sanity_check_needed": false,
+      "drama_direction": "Creare un'atmosfera di mistero e curiosità per attirare i giocatori nella storia",
+      "pacing": "normale",
+      "atmosphere_note": "Ombre, antichi segreti, esotismo"
+    }
+  },
+  {
+    "turn": 2,
+    "timestamp": "2026-03-27T11:07:10.370Z",
+    "role": "player",
+    "player_id": "61477147-4f4d-45bb-b74c-9527a0e88be5",
+    "player_name": "Peppe",
+    "message_type": "action",
+    "content": "dove siamo in questo momento?"
+  },
+  {
+    "turn": 2,
+    "timestamp": "2026-03-27T11:07:41.853Z",
+    "role": "gm",
+    "content": "Siete seduti in un caffè tranquillo nel quartiere di Montmartre, vicino all'Hotel des Grands Hommes. La notte è fresca e l'aria è piena del profumo dei fiori di pesco.",
+    "directives_applied": [
+      "ASSIGN_TURN"
+    ],
+    "gm_reasoning": {
+      "player_intent": "chiede informazioni sulla propria posizione",
+      "interpretation": "Peppe vuole sapere dove si trova, probabilmente per orientarsi nello scenario",
+      "roll_needed": {
+        "required": false,
+        "skill": null,
+        "difficulty": null,
+        "why": ""
+      },
+      "npc_reactions": {},
+      "consequences": {
+        "on_success": "Peppe riceve informazioni sulla propria posizione",
+        "on_failure": "",
+        "immediate": ""
+      },
+      "sanity_check_needed": false,
+      "drama_direction": "descrivere la scena in modo da enfatizzare l'incertezza e lo spaesamento di Peppe",
+      "pacing": "normale",
+      "atmosphere_note": "tensione, incertezza"
+    }
+  }
+]

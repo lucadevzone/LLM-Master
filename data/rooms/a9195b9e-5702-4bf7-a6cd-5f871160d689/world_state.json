@@ -1,0 +1,31 @@
+{
+  "adventure_id": "fate_of_atlantis",
+  "cycle_phase": "reagire_dichiarazioni",
+  "current_scene_index": 1,
+  "flags": {},
+  "active_threats": [],
+  "clues_found": [],
+  "npcs": {},
+  "notes": [],
+  "groups": [
+    {
+      "id": "main",
+      "character_names": [
+        "Emilio",
+        "Luca",
+        "Peppe"
+      ],
+      "members": [
+        "0a864e36-d2ac-45c4-b88e-2130ebe9d812",
+        "493c4237-4f82-47d7-aa97-8fc0b3009fed",
+        "61477147-4f4d-45bb-b74c-9527a0e88be5"
+      ],
+      "sub_location": null,
+      "last_active_at": "2026-03-27T11:07:41.850Z"
+    }
+  ],
+  "active_group_id": "main",
+  "turn_counts": {
+    "Peppe": 1
+  }
+}

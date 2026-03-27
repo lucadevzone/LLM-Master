@@ -1,0 +1,21 @@
+{
+  "id": "a9195b9e-5702-4bf7-a6cd-5f871160d689",
+  "name": "The Fate of Atlantis — Emilio, Luca Sabatucci, Peppe",
+  "adventure_id": "fate_of_atlantis",
+  "player_ids": [
+    "0a864e36-d2ac-45c4-b88e-2130ebe9d812",
+    "493c4237-4f82-47d7-aa97-8fc0b3009fed",
+    "61477147-4f4d-45bb-b74c-9527a0e88be5"
+  ],
+  "llmConfig": null,
+  "session_duration_minutes": null,
+  "session_id": "41b238a8-ef79-49db-9b80-b64e155fd29f",
+  "status": "active",
+  "created_at": "2026-03-27T11:05:15.251Z",
+  "last_active": "2026-03-27T11:06:05.195Z",
+  "character_map": {
+    "493c4237-4f82-47d7-aa97-8fc0b3009fed": "1c3cde23-02eb-4bb8-b7bc-0c707657f897",
+    "0a864e36-d2ac-45c4-b88e-2130ebe9d812": "8c6a2763-dd5e-44dd-a74a-61eab1672544",
+    "61477147-4f4d-45bb-b74c-9527a0e88be5": "9beb43ea-a6cd-4679-8b2a-579744d07ebd"
+  }
+}

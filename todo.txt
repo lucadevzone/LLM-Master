@@ -1,18 +1,33 @@
+
+Nella scheda sessione il template corretto per visualizzare i nomi è Giocatore (Nome PG).
+
+Errore: il sistema mi informava che "★ Hai la parola" ma appena ho scritto mi ha risposto: Errore: Non hai la parola al momento
+
+Un giocatore fuori turno ha alzato la mano, in chat spunta Emilio chiede la parola. ma non succede nulla. Non dovrebbe arrivare al custode questa info? però forse mi sta venendo in mente che la potremmo gestire in maniera differente questa cosa. Ovvero tra giocatori, senza il custode intermediario. Se un PG è di turno, e un altro alza la mano, al giocatore di turno spunta l'opzione di cedere il turno oppure di ignorare questa interruzione.
+
+Altra cosa, chi è fuori turno può provare a mandare un messaggio al custode fuori turno, ma nell'interfaccia la text area per scrivere il messaggio è inibita.
+
+Nella pagina della chat serve un pulsante per tornare alla lobby
+
+Il sistema si è bloccato su "Il Custode sta parlando…". E' chiaramente un errore e non dovrebbe accadere, ma visto che siamo in fase di test, in questo caso occorre un meccanismo per sbloccare la situazione. Magari lato Admin?
+
+
+
 FATTO - Nella scheda sessione il nome degli altri giocatori è offuscato: rimosso l'UUID dalla label, ora mostra solo il nome del PG.
 
 FATTO (parziale) - world_state.json spostato nella root della stanza (data/rooms/{id}/world_state.json). Aggiornati paths.js, gm.js, rooms.js, sessions.js, admin.js.
 APERTO - Mancano i file scena all'apertura dell'avventura. La fase "impostare la scena" deve creare/usare scene/NNN.json. Il personal_diary dei PG va aggiornato su eventi importanti.
 
-Un PG si è allontanato esplicitamente dal gruppo. Questo crea una "sottoscena" nella scena attuale. I PG sono separati.. Il custode deve gestire le due cose in parallelo. Con conversazioni differenti. Le informazioni di uno non vanno nella chat degli altri se non sono insieme.
+FATTO Un PG si è allontanato esplicitamente dal gruppo. Questo crea una "sottoscena" nella scena attuale. I PG sono separati.. Il custode deve gestire le due cose in parallelo. Con conversazioni differenti. Le informazioni di uno non vanno nella chat degli altri se non sono insieme.
 Questo forse cambierà parecchie scelte fatte fino ad ora. Dobbiamo considerare i "gruppi" di PG come entità. Un gruppo non è bloccato se intanto un altro gruppo sta facendo qualcosa.
 
-ancora il custode non gestisce bene le situazioni di gioco libero in cui i PG parlano tra loro.
+FATTO ancora il custode non gestisce bene le situazioni di gioco libero in cui i PG parlano tra loro.
 Esempio: TU: ragazzi che facciamo? andiamo alla mostra?
 CUSTODE: La luce dei lampadari dell'Expo illumina la strada, attirando un flusso costante di persone verso l'ingresso della mostra. Sembra una sera come tante altre, ma qualcosa nell'aria fa sentire Emilia e Luca un po' nervosi. Peppe si volta verso gli amici con un sorriso indeciso.
 EMI: si mi piacerebbe vedere nuovi reperti
 CUSTODE: Entrate nella mostra, dove potrete vedere una vasta collezione di reperti antichi, tra cui alcuni oggetti misteriosi e inquietanti.
 
-Dobbiamo chiarire una volta e per tutte l'input e l'output di ogni fase.
+FATTO Dobbiamo chiarire una volta e per tutte l'input e l'output di ogni fase.
 fase "avvio avventura". Input: avventura.md, avvio.md (regole), tutte le schede dentro characters. Output: aggiornare diary.txt
 fase "avvio_sessione". Input: avventura.md, inizio_sessione.md (regole), diary.txt, world_state.json, il file di scena corrente. Output: niente
 fase "impostare la scena". Input: avventura.md, impostare_scena.md (regole), diary.txt, world_state.json, il file di scena corrente, le schede dei PNG coinvolti. Output: aggiornare scena corrente, oppure creare nuova scena e aggiornare world_state.json
