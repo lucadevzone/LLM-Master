@@ -23,6 +23,8 @@ Quando il "Il Custode sta parlando…" bisogna eliminare immediatamente i pulsan
 
 Quando scatta il timeout e il custode prova a stimolare le cose, metterei in chat una frasetta del tipo  "Vi vedo un pò fermi, proviamo a fare andare avanti le cose..." e poi la LLM pensa e il custode scrive ancora.
 
+Visto che siamo in fase di testing, mi servirebbe un comando rapido per fare pulizia tra i file in data (eliminare tutte le room in corso, ma tenendo tutto il resto). Potrebbe essere un comando di admin. 
+
 FATTO - Quando mi collego su http://localhost:3000 mi appare una pagina "vecchia" senza alcun senso. Dovrebbe indirizzarmi a http://localhost:3000/login se non sono loggato, oppure a http://localhost:3000/lobby se sono loggato come giocatore e infine a http://localhost:3000/admin se sono loggato come admin
 
 FATTO - Servirebbe una procedura interna per cambiare la password (aggiunto bottone "Password" + modal in lobby.html e admin.html; endpoint POST /api/auth/change-password)
