@@ -66,8 +66,8 @@ export const api = {
   addNpcKnowledge: (roomId, npcId, fact) => req('POST', `/api/rooms/${roomId}/npcs/${npcId}/knowledge`, { fact }),
 
   // GM — azioni giocatore
-  playerTurn: (sessionId, content) =>
-    req('POST', `/api/sessions/${sessionId}/player-turn`, { content }),
+  playerTurn: (sessionId, content, { quickAction = false } = {}) =>
+    req('POST', `/api/sessions/${sessionId}/player-turn`, { content, quick_action: quickAction }),
   sendComment: (sessionId, content, type = 'comment') =>
     req('POST', `/api/sessions/${sessionId}/comment`, { content, type }),
   raiseHand: (sessionId) =>

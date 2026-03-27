@@ -657,6 +657,33 @@ export async function loadHistory(sessionId, multi) {
 
 // ── Azioni suggerite ──────────────────────────────────────────────────────────
 
+async function sendQuickAction(action, sessionId) {
+  const sid = sessionId || currentSessionId;
+
+  if (isMultiplayer) {
+    if (floorState.state !== 'open' && !(floorState.state === 'player' && floorState.player_id === myPlayerId)) {
+      appendSystemMessage('Non hai la parola al momento.', 'failure');
+      return;
+    }
+    // Nessun player bubble — l'azione è un comando silenzioso
+    clearActionArea();
+    try {
+      await api.playerTurn(sid, action, { quickAction: true });
+    } catch (err) {
+      appendSystemMessage(`Errore: ${err.message}`, 'failure');
+    }
+  } else {
+    if (isStreaming) return;
+    clearActionArea();
+    try {
+      await api.playerTurn(sid, action, { quickAction: true });
+      openGMStream(sid);
+    } catch (err) {
+      appendSystemMessage(`Errore: ${err.message}`, 'failure');
+    }
+  }
+}
+
 function renderSuggestedActions(actions, sessionId) {
   if (!actions?.length) return;
   for (const action of actions.slice(0, 4)) {
@@ -665,7 +692,7 @@ function renderSuggestedActions(actions, sessionId) {
     btn.textContent = action;
     btn.addEventListener('click', async () => {
       clearActionArea();
-      await sendPlayerAction(action, sessionId);
+      await sendQuickAction(action, sessionId);
     });
     actionArea.appendChild(btn);
   }
@@ -712,6 +739,19 @@ export function setSession(sessionId) {
       localStorage.setItem(`llm-notes-${sessionId}`, notesEl.value);
     });
     notesEl.dataset.bound = '1';
+  }
+
+  // Inizializza color picker nuvolette
+  const picker = document.getElementById('player-color-picker');
+  if (picker && !picker.dataset.bound) {
+    const savedColor = localStorage.getItem('llm-player-color') || '#1a4a2a';
+    picker.value = savedColor;
+    document.documentElement.style.setProperty('--player-color', savedColor);
+    picker.addEventListener('input', () => {
+      document.documentElement.style.setProperty('--player-color', picker.value);
+      localStorage.setItem('llm-player-color', picker.value);
+    });
+    picker.dataset.bound = '1';
   }
 }
 

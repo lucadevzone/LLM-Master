@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import { join } from 'path';
-import { listFiles } from '../persistence/fileStore.js';
-import { readJson, writeJson } from '../persistence/fileStore.js';
-import { paths } from '../persistence/paths.js';
+import { listFiles, readJson, writeJson, appendText } from '../persistence/fileStore.js';
+import { paths, getRoomIdForSession } from '../persistence/paths.js';
 import { loadAdventure } from '../core/adventure.js';
 import { gmHistoryEntry, playerHistoryEntry, diceHistoryEntry } from '../core/session.js';
 import { performSkillRoll } from '../core/dice.js';
@@ -263,6 +262,16 @@ async function runGMTurn(sessionId, actingPlayerId) {
 
   // ── Parse e direttive ────────────────────────────────────────────────────────
   const parsed = parseGMResponse(fullResponse);
+
+  // PASS: il GM sceglie di non intervenire, lascia i giocatori parlare tra loro
+  if (parsed.directives.some((d) => d.type === 'PASS')) {
+    releaseFloor(sessionId);
+    broadcast(sessionId, 'floor_change', { state: 'open', hand_queue: getFloor(readJson(paths.sessionFile(sessionId))).hand_queue });
+    broadcast(sessionId, 'done', { turn: session.turn_count });
+    resetGMTimer(sessionId, config.gmProactiveTimeoutMs);
+    return;
+  }
+
   const { immediate, afterDice } = splitDirectives(parsed.directives);
 
   const nonDiceDirectives = immediate.filter(
@@ -289,6 +298,18 @@ async function runGMTurn(sessionId, actingPlayerId) {
   // Notifica eventi (game_event) — a tutti
   for (const event of events) {
     broadcast(sessionId, 'game_event', event);
+  }
+
+  // Aggiorna diary.txt quando si apre una nuova scena
+  const newSceneEvent = events.find((e) => e.type === 'new_scene');
+  if (newSceneEvent) {
+    const roomId = getRoomIdForSession(sessionId);
+    if (roomId) {
+      const sc = newSceneEvent.scene;
+      const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+      const diaryLine = `[${timestamp}] SCENA ${sc.index}: ${sc.title} — ${sc.location || ''} (${sc.time || ''})`;
+      appendText(paths.roomDiaryFile(roomId), diaryLine);
+    }
   }
 
   // Sussurri — solo al giocatore destinatario
@@ -344,8 +365,12 @@ async function runGMTurn(sessionId, actingPlayerId) {
     }
   }
 
-  // UI hints e aggiornamento scheda — a tutti
-  broadcast(sessionId, 'ui_hints', parsed.ui_hints);
+  // UI hints (scelte rapide) — solo al giocatore attivo
+  if (isMulti && actingPlayerId) {
+    sendTo(sessionId, actingPlayerId, 'ui_hints', parsed.ui_hints);
+  } else {
+    broadcast(sessionId, 'ui_hints', parsed.ui_hints);
+  }
   broadcast(sessionId, 'character_update', {
     player_id: actingPlayerId,
     character_id: actingPlayerEntry.character_id,
@@ -433,23 +458,29 @@ async function triggerSessionStart(sessionId) {
 
   session.turn_count = (session.turn_count || 0) + 1;
 
+  // Imposta la fase corretta nel world state prima di chiamare il GM
+  const wsStart = readJson(paths.worldStateFile(sessionId));
+  if (wsStart) {
+    wsStart.cycle_phase = isFirstTime ? 'avvio' : 'inizio_sessione';
+    writeJson(paths.worldStateFile(sessionId), wsStart);
+  }
+
   let startMessage;
   if (isFirstTime) {
     startMessage =
       `[SISTEMA - INIZIO AVVENTURA]\n` +
       `Avventura: "${adventure.title}".\n` +
       `Gruppo: ${partyNames}.\n` +
-      `Apri la prima scena esattamente come descritta nel canovaccio. ` +
-      `Presenta l'ambiente, i personaggi presenti, l'atmosfera. Sii evocativo.`;
+      `Segui le regole di fase "avvio": presenta l'ambientazione, i personaggi e gli antefatti. ` +
+      `Non aprire ancora la prima scena — quella verrà nella fase successiva.`;
   } else {
     const recap = getSessionRecap(sessionId);
     startMessage =
       `[SISTEMA - RIPRESA AVVENTURA]\n` +
       `Avventura: "${adventure.title}".\n` +
       `Gruppo: ${partyNames}.\n` +
-      `Cosa è successo nelle sessioni precedenti:\n${recap}\n\n` +
-      `Fai un breve riepilogo narrativo in seconda persona plurale di ciò che il gruppo ha vissuto, ` +
-      `poi riprendi l'avventura dal punto in cui si era interrotta.`;
+      `Segui le regole di fase "inizio_sessione": fai un riepilogo narrativo degli eventi precedenti.\n` +
+      `Contesto delle sessioni precedenti:\n${recap}`;
   }
 
   appendHistory(sessionId, playerHistoryEntry(session.turn_count, startMessage));
@@ -569,7 +600,7 @@ router.get('/:id/stream', async (req, res) => {
  * Riceve l'azione principale del giocatore (prende il floor).
  */
 router.post('/:id/player-turn', async (req, res) => {
-  const { content } = req.body;
+  const { content, quick_action: quickAction = false } = req.body;
   if (!content?.trim()) return res.status(400).json({ error: 'Azione vuota' });
 
   const session = readJson(paths.sessionFile(req.params.id));
@@ -582,10 +613,16 @@ router.post('/:id/player-turn', async (req, res) => {
     // ── Multi-player: controlla e prende il floor ─────────────────────────
     const floor = getFloor(session);
     if (floor.state === 'lobby') return res.status(400).json({ error: 'La sessione non è ancora iniziata' });
-    if (floor.state !== 'open') return res.status(409).json({ error: 'Il pavimento non è libero', floor_state: floor.state, floor_player: floor.player_id });
 
-    const result = takeFloor(req.params.id, req.user.id);
-    if (!result.ok) return res.status(409).json({ error: result.reason });
+    const alreadyAssigned = floor.state === 'player' && floor.player_id === req.user.id;
+
+    if (!alreadyAssigned) {
+      // Floor libero: prova a prenderlo
+      if (floor.state !== 'open') return res.status(409).json({ error: 'Non hai la parola al momento', floor_state: floor.state, floor_player: floor.player_id });
+      const result = takeFloor(req.params.id, req.user.id);
+      if (!result.ok) return res.status(409).json({ error: result.reason });
+    }
+    // Se alreadyAssigned: il floor è già di questo giocatore (via ASSIGN_TURN), nessun takeFloor necessario
 
     // Trova il personaggio del player attivo
     const playerEntry = session.players.find((p) => p.player_id === req.user.id);
@@ -619,7 +656,10 @@ router.post('/:id/player-turn', async (req, res) => {
 
     // Broadcast: il giocatore ha preso la parola
     broadcast(req.params.id, 'floor_change', { state: 'player', player_id: req.user.id, player_name: playerName });
-    broadcast(req.params.id, 'player_action', { player_id: req.user.id, player_name: playerName, content: content.trim() });
+    // Per i comandi rapidi non mostriamo in chat il testo grezzo dell'azione
+    if (!quickAction) {
+      broadcast(req.params.id, 'player_action', { player_id: req.user.id, player_name: playerName, content: content.trim() });
+    }
 
     res.json({ turn: session.turn_count, status: 'ok' });
 

@@ -184,6 +184,7 @@
   <span class="top-bar-title">LLM · MASTER &mdash; Admin</span>
   <div class="top-bar-right">
     <span id="admin-name"></span>
+    <button class="btn-logout" id="btn-change-password">Password</button>
     <button class="btn-logout" id="btn-logout">Esci</button>
   </div>
 </div>
@@ -261,6 +262,30 @@
 
 </div>
 
+<!-- ══ Modal: Cambia password ════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-change-password">
+  <div class="modal">
+    <h3>Cambia password</h3>
+    <div class="form-group">
+      <label>Password attuale</label>
+      <input type="password" id="cp-current" autocomplete="current-password">
+    </div>
+    <div class="form-group">
+      <label>Nuova password</label>
+      <input type="password" id="cp-new" autocomplete="new-password">
+    </div>
+    <div class="form-group">
+      <label>Conferma nuova password</label>
+      <input type="password" id="cp-confirm" autocomplete="new-password">
+    </div>
+    <div class="error-msg" id="err-change-password"></div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" id="btn-cp-cancel">Annulla</button>
+      <button type="button" class="btn btn-primary" id="btn-cp-save">Salva</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ Modal: Aggiungi giocatore ═════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="modal-add-player">
   <div class="modal">
@@ -298,7 +323,7 @@
 
       <div class="form-group">
         <label>Giocatori (seleziona uno o più)</label>
-        <div id="room-players-list" style="max-height:120px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:.5rem;display:flex;flex-direction:column;gap:.35rem;background:var(--bg);">
+        <div id="room-players-list" style="max-height:140px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:.4rem .6rem;background:var(--bg);">
           <span style="color:var(--text-muted);font-size:.82rem">Caricamento…</span>
         </div>
       </div>
@@ -591,6 +616,39 @@ async function archiveRoom(id, name) {
   }
 }
 
+// ── Cambia password ────────────────────────────────────────────────────────────
+
+document.getElementById('btn-change-password').addEventListener('click', () => {
+  document.getElementById('cp-current').value = '';
+  document.getElementById('cp-new').value = '';
+  document.getElementById('cp-confirm').value = '';
+  document.getElementById('err-change-password').textContent = '';
+  openModal('modal-change-password');
+});
+
+document.getElementById('btn-cp-cancel').addEventListener('click', () => closeModal('modal-change-password'));
+
+document.getElementById('btn-cp-save').addEventListener('click', async () => {
+  const err = document.getElementById('err-change-password');
+  err.textContent = '';
+  const current = document.getElementById('cp-current').value;
+  const newPwd = document.getElementById('cp-new').value;
+  const confirm = document.getElementById('cp-confirm').value;
+  if (!current || !newPwd) { err.textContent = 'Compila tutti i campi.'; return; }
+  if (newPwd !== confirm) { err.textContent = 'Le password non coincidono.'; return; }
+  if (newPwd.length < 6) { err.textContent = 'La password deve essere di almeno 6 caratteri.'; return; }
+  try {
+    await api('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ current_password: current, new_password: newPwd }),
+    });
+    closeModal('modal-change-password');
+    alert('Password aggiornata.');
+  } catch (ex) {
+    err.textContent = ex.message;
+  }
+});
+
 document.getElementById('room-provider').addEventListener('change', () => {
   const isOpenAI = document.getElementById('room-provider').value === 'openai';
   document.getElementById('group-apikey').style.display = isOpenAI ? '' : 'none';
@@ -612,9 +670,12 @@ document.getElementById('btn-create-room').addEventListener('click', async () =>
     listEl.innerHTML = '<span style="color:var(--text-muted);font-size:.82rem">Nessun giocatore disponibile.</span>';
   } else {
     listEl.innerHTML = players.map(p => `
-      <label style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;cursor:pointer">
-        <input type="checkbox" name="room-player-check" value="${p.id}">
-        <span>${p.name} <span style="color:var(--text-muted);font-size:.75rem">(${p.email})</span></span>
+      <label style="display:flex;align-items:center;gap:.6rem;font-size:.85rem;cursor:pointer;padding:.2rem 0">
+        <input type="checkbox" name="room-player-check" value="${p.id}" style="flex-shrink:0;width:15px;height:15px;margin:0;cursor:pointer">
+        <span style="display:flex;flex-direction:column;line-height:1.3">
+          <span>${p.name}</span>
+          <span style="color:var(--text-muted);font-size:.75rem">${p.email}</span>
+        </span>
       </label>`).join('');
   }
 

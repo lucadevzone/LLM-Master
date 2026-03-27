@@ -8,6 +8,8 @@ import { paths } from '../persistence/paths.js';
 
 function loadCustodeRules(phase) {
   const fileMap = {
+    avvio: 'avvio.md',
+    inizio_sessione: 'inizio_sessione.md',
     impostare_scena: 'impostare_scena.md',
     coinvolgere_pg: 'coinvolgere_pg.md',
     reagire_dichiarazioni: 'reagire_dichiarazioni.md',
@@ -49,6 +51,7 @@ Struttura obbligatoria:
 - SET_CYCLE_PHASE: { "type": "SET_CYCLE_PHASE", "phase": "<impostare_scena|coinvolgere_pg|reagire_dichiarazioni>" }
 - ASSIGN_TURN: { "type": "ASSIGN_TURN", "character_name": "<nome esatto del PG a cui assegni la parola>" }
 - OPEN_FLOOR: { "type": "OPEN_FLOOR" }
+- PASS: { "type": "PASS" } — non intervenire: lascia che i giocatori si parlino tra loro. Usa questa direttiva quando la conversazione tra PG è fluente e non richiede il tuo intervento. La narrative deve essere vuota ("").
 - WHISPER: { "type": "WHISPER", "character_name": "<nome esatto del PG destinatario>", "message": "<testo visibile solo a quel giocatore>" }
 
 **PNG:**

@@ -1,24 +1,22 @@
-Quando mi collego su http://localhost:3000 mi appare una pagina "vecchia" senza alcun senso. Dovrebbe indirizzarmi a http://localhost:3000/login se non sono loggato, oppure a http://localhost:3000/lobby se sono loggato come giocatore e infine a http://localhost:3000/admin se sono loggato come admin
+FATTO - Quando mi collego su http://localhost:3000 mi appare una pagina "vecchia" senza alcun senso. Dovrebbe indirizzarmi a http://localhost:3000/login se non sono loggato, oppure a http://localhost:3000/lobby se sono loggato come giocatore e infine a http://localhost:3000/admin se sono loggato come admin
 
-Servirebbe una procedura interna per cambiare la password
+FATTO - Servirebbe una procedura interna per cambiare la password (aggiunto bottone "Password" + modal in lobby.html e admin.html; endpoint POST /api/auth/change-password)
 
 Quando si crea una nuova stanza appare una finestra con alcuni parametri da selezionare. Il campo seleziona giocatori è esteticamente errato in quanto le combo box sono troppo a destra e non sono allineate tra di loro. Stessa cosa per il nome dei giocatori
 
-La cartella player è apparsa dentro users, mentre secondo me andrebbe coerentemente dentro la room 
+NON-ISSUE - La cartella players (data/users/players/) non è una duplicazione di data/rooms/{id}/characters/: servono a cose diverse. players contiene gli account dei giocatori (email, passwordHash, salt, inviteCode) ed è il registro globale usato dall'autenticazione, indipendente dalle stanze. characters contiene le schede personaggio RPG (caratteristiche, abilità, backstory) ed è specifica per ogni stanza/avventura. Un giocatore può avere un personaggio diverso in stanze diverse. La nota nasceva da una confusione durante la migrazione dei file, non da un problema architetturale reale.
 
-all'avvio della campagna il custode ha narrato: "La luce del tramonto colorava di rosa il cielo sopra Parigi, mentre la città si preparava a ricevere i visitatori dell'Esposizione Universale. Il rumore dei carri e delle voci degli operai riempiva l'aria, ma Emilio, Luca e Peppe non erano qui per ammirare le meraviglie della tecnologia del XX secolo. Erano venuti a Parigi alla ricerca di qualcosa di più antico, qualcosa di nascosto tra le righe della storia. Si trovavano ora nella Galleria Dumont, un luogo dove l'antichità e la modernità si incontravano in una mostra che sarebbe andata a rappresentare uno degli aspetti più interessanti dell'Esposizione."
-tuttavia questa non è adatta come introduzione della avventura (dovremmo essere nella fase ("Presentare ambientazione, PG e eventuali Antefatti"). Proporrei di aggiungere un file di istruzioni (avvio.md) anche per questa fase, e direi anche un file (inizio_sessione.md) per la fase "Fa una breve sintesi degli eventi principali e delle ultime giocate"
-Inoltre il custode non sta rispondendo a questa domanda, e anche questo è un errore perchè il sistema si è bloccato (in realtà è tornato in parola libera, ma io stavo aspettando la risposta del sign Dumont)
+FATTO - all'avvio della campagna il custode ha narrato un'introduzione non adatta (dovremmo essere nella fase "Presentare ambientazione, PG e eventuali Antefatti"). Aggiunti file custode/avvio.md e custode/inizio_sessione.md; triggerSessionStart imposta correttamente il cycle_phase.
 
-Qui mi viene anche un dubbio: Se i giocatori parlano tra di loro, il custode potrebbe decidere di non intervenire. Dobbiamo aggiungere anche questo comportamento tra le reazioni del custode. Infatti un PG ha scritto (bene io non vedo l'ora di andare a visitare la collezione, e voi signor Emilio e sign Luca?) ma la parola è passata sempre al custode. Sarebbe stato più logico permettere agli altri PG di rispondere.
+FATTO - Il custode non stava rispondendo quando il floor tornava libero (sistema bloccato). Aggiunta direttiva PASS: il custode può decidere di non intervenire quando i giocatori conversano tra loro, lasciando la parola libera.
 
-Le nuvolette di testo dei giocatori dovrebbero avere un colore diverso. Sarebbe anche carino se questo colore si potesse selezionare dal pannello "Sessione"
+FATTO - Le nuvolette di testo dei giocatori dovrebbero avere un colore diverso. Color picker nel tab Sessione; colore salvato in localStorage (chiave llm-player-color); aggiorna la CSS var --player-color che governa border e label. Il background della bubble si adatta automaticamente via color-mix(). Persiste tra sessioni diverse.
 
-Ho provato a selezionare un "comando rapido" (Chiedere informazioni sulla mostra) e in chat è spuntato TU (Chiedere informazioni sulla mostra) e poi sotto CUSTODE (Signor Dumont, siamo qui per ammirare la sua meravigliosa esposizione...) Qui abbiamo un errore, infatti il testo scritto da custode è la conversione in "narrativa" del comando rapido. Sarebbe più corretto che in questo caso il comando rapido non spunti in chat e che il testo generato sia associato al giocatore che ha parlato. 
+FATTO - Comando rapido: il testo grezzo non appare più in chat (né per il giocatore attivo né per gli altri). Lato server: il broadcast player_action viene saltato se quick_action=true. Lato prompt: aggiunta regola in reagire_dichiarazioni.md che vieta al GM di scrivere il dialogo del PG — deve narrare solo la reazione dell'ambiente/PNG.
 
-Il pg ha scritto (bene salutiamo il sign Dumont e ci congediamo) questo dovrebbe portare ad una nuova scena. Ovvero creare una scena 002.json nella cartella. Si dovrebbe anche aggiornare il "diary.txt" giusto? Ma non succede. Siamo usciti dalle gallerie, siamo entrati al bar (cambio scena) ma la nuova scena nn c'è. 
+FATTO - Il pg ha scritto (bene salutiamo il sign Dumont e ci congediamo) questo dovrebbe portare ad una nuova scena. Creazione di scene/002.json e aggiornamento diary.txt ora gestiti dal server tramite direttiva NEW_SCENE.
 
-Siamo passati al turno fisso: nella chat di Pappe spunta "Hai la parola". E infatti nella chat degli altri due spunta la dicitura "Sta agendo: Peppe" però a tutti spuntano le scelte rapide (ma dovrebbero spuntare solo al giocatori di turno). Se ungiocatore fuori turno preme un pulsante per la scelta rapida in chat spunta (Non hai la parola al momento.): toglierei proprio i pulsanti. Però se Peppe preme questo pulsante spunta (Errore: Il pavimento non è libero) questo messaggio (in rosso) non capisco che cosa è... da questo momento qualunque cosa dichiaro mi spunta lo stesso strano errore.
+FATTO - Siamo passati al turno fisso: le scelte rapide spuntavano a tutti i giocatori (dovrebbero solo al giocatore di turno). ui_hints ora inviati solo al giocatore attivo via sendTo. Bug "Il pavimento non è libero" risolto con controllo alreadyAssigned in player-turn.
 
 
 FATTO - gestione della connessione nella room e sincronizzazione con i client dei giocatori. Centralizzato nel server: endpoint GET /api/sessions/:id/connected-players; il client fa query al server ogni volta che si apre il tab "Sessione". Gli eventi SSE player_connected/player_disconnected aggiornano la lista in background. Il nome viene mostrato come <nome_pg> (Tu) per se stessi; per gli altri manca ancora il nome_giocatore tra parentesi (da aggiungere quando il sistema di autenticazione espone il nome del giocatore).
@@ -50,5 +48,3 @@ FATTO - In "coinvolgere i PG": regole in custode/coinvolgere_pg.md. Direttive AS
 
 FATTO - In "reagire alle dichiarazioni": regole in custode/reagire_dichiarazioni.md. Fase attivata automaticamente dal server quando un giocatore prende il floor. Direttive UPDATE_SCENE, SET_CYCLE_PHASE per tornare al ciclo.
 FATTO - Timeout proattivo: se i giocatori non agiscono per GM_PROACTIVE_TIMEOUT_MS (default 5 min), il GM interviene autonomamente con un messaggio di stimolo narrativo.
-
-

@@ -134,6 +134,14 @@ export function updatePlayer(id, updates) {
   return updated;
 }
 
+export function updateAdmin(updates) {
+  const admin = readJson(paths.adminFile());
+  if (!admin) return null;
+  const updated = { ...admin, ...updates };
+  writeJson(paths.adminFile(), updated);
+  return updated;
+}
+
 export function deletePlayer(id) {
   const file = paths.playerFile(id);
   if (existsSync(file)) unlinkSync(file);

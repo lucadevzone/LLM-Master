@@ -262,7 +262,32 @@
   <span class="top-bar-title">LLM · MASTER</span>
   <div class="top-bar-right">
     <span id="player-name-display"></span>
+    <button class="btn-secondary" id="btn-change-password">Password</button>
     <button class="btn-logout" id="btn-logout">Esci</button>
+  </div>
+</div>
+
+<!-- Modal cambio password -->
+<div class="overlay" id="overlay-change-password">
+  <div class="modal">
+    <h2>Cambia password</h2>
+    <div class="form-group">
+      <label>Password attuale</label>
+      <input type="password" id="cp-current" autocomplete="current-password">
+    </div>
+    <div class="form-group">
+      <label>Nuova password</label>
+      <input type="password" id="cp-new" autocomplete="new-password">
+    </div>
+    <div class="form-group">
+      <label>Conferma nuova password</label>
+      <input type="password" id="cp-confirm" autocomplete="new-password">
+    </div>
+    <div id="cp-error" style="color:#c0392b;font-size:0.85rem;min-height:1.2em"></div>
+    <div class="modal-buttons">
+      <button class="btn-secondary" id="btn-cp-cancel">Annulla</button>
+      <button class="btn-primary" id="btn-cp-save">Salva</button>
+    </div>
   </div>
 </div>
 
@@ -377,6 +402,39 @@ function badgeHtml(status) {
 document.getElementById('btn-logout').addEventListener('click', async () => {
   await fetch('/api/auth/logout', { method: 'POST' });
   window.location.href = '/login';
+});
+
+// ── Cambio password ────────────────────────────────────────────────────────────
+document.getElementById('btn-change-password').addEventListener('click', () => {
+  document.getElementById('cp-current').value = '';
+  document.getElementById('cp-new').value = '';
+  document.getElementById('cp-confirm').value = '';
+  document.getElementById('cp-error').textContent = '';
+  document.getElementById('overlay-change-password').classList.add('open');
+});
+document.getElementById('btn-cp-cancel').addEventListener('click', () => {
+  document.getElementById('overlay-change-password').classList.remove('open');
+});
+document.getElementById('btn-cp-save').addEventListener('click', async () => {
+  const current = document.getElementById('cp-current').value;
+  const newPwd = document.getElementById('cp-new').value;
+  const confirm = document.getElementById('cp-confirm').value;
+  const err = document.getElementById('cp-error');
+  if (!current || !newPwd) { err.textContent = 'Compila tutti i campi.'; return; }
+  if (newPwd.length < 6) { err.textContent = 'La nuova password deve essere di almeno 6 caratteri.'; return; }
+  if (newPwd !== confirm) { err.textContent = 'Le password non coincidono.'; return; }
+  try {
+    const res = await api('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ current_password: current, new_password: newPwd }),
+    });
+    if (res.ok) {
+      document.getElementById('overlay-change-password').classList.remove('open');
+    } else {
+      const data = await res.json();
+      err.textContent = data.error || 'Errore.';
+    }
+  } catch (e) { err.textContent = e.message; }
 });
 
 // ── Rooms ──────────────────────────────────────────────────────────────────────

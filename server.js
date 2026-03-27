@@ -70,6 +70,13 @@ app.use('/api', adminRouter);
 // ── Serve frontend statico ────────────────────────────────────────────────────
 app.use(express.static(join(__dirname, 'frontend')));
 
+// ── Root redirect ─────────────────────────────────────────────────────────────
+app.get('/', (req, res) => {
+  if (!req.user) return res.redirect('/login');
+  if (req.user.role === 'admin') return res.redirect('/admin');
+  return res.redirect('/lobby');
+});
+
 // ── Fallback SPA (solo per il gioco) ─────────────────────────────────────────
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {

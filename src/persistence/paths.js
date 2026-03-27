@@ -11,6 +11,20 @@ export function registerSessionDir(sessionId, dirPath) {
   sessionDirCache.set(sessionId, dirPath);
 }
 
+/**
+ * Restituisce il roomId che contiene questa sessione, o null se standalone.
+ */
+export function getRoomIdForSession(sessionId) {
+  const dir = resolveSessionDir(sessionId);
+  const roomsDir = join(config.dataDir, 'rooms');
+  if (dir.startsWith(roomsDir + '/')) {
+    // dir = .../rooms/{roomId}/sessions/{sessionId}
+    const rel = dir.slice(roomsDir.length + 1);
+    return rel.split('/')[0] || null;
+  }
+  return null;
+}
+
 function resolveSessionDir(sessionId) {
   if (sessionDirCache.has(sessionId)) return sessionDirCache.get(sessionId);
 

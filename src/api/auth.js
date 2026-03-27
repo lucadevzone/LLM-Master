@@ -2,7 +2,7 @@ import { Router } from 'express';
 import {
   verifyPassword, createAuthToken, deleteAuthToken,
   getAdmin, getPlayerByEmail, getPlayerByInviteCode,
-  updatePlayer, hashPassword,
+  updatePlayer, updateAdmin, hashPassword,
 } from '../core/auth.js';
 
 const router = Router();
@@ -93,6 +93,33 @@ router.post('/invite/:code', (req, res) => {
   const token = createAuthToken(player.id, 'player');
   res.cookie(COOKIE_NAME, token, COOKIE_OPTS);
   res.json({ ok: true, redirect: '/lobby' });
+});
+
+// POST /api/auth/change-password — cambia la propria password (utente autenticato)
+router.post('/change-password', (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'Non autenticato' });
+
+  const { current_password, new_password } = req.body;
+  if (!current_password || !new_password) {
+    return res.status(400).json({ error: 'current_password e new_password sono obbligatori' });
+  }
+  if (new_password.length < 6) {
+    return res.status(400).json({ error: 'La nuova password deve essere di almeno 6 caratteri' });
+  }
+
+  // Verifica password attuale
+  if (!verifyPassword(current_password, req.user.passwordHash, req.user.salt)) {
+    return res.status(403).json({ error: 'Password attuale non corretta' });
+  }
+
+  const { hash, salt } = hashPassword(new_password);
+  if (req.user.role === 'admin') {
+    updateAdmin({ passwordHash: hash, salt });
+  } else {
+    updatePlayer(req.user.id, { passwordHash: hash, salt });
+  }
+
+  res.json({ ok: true });
 });
 
 export default router;
